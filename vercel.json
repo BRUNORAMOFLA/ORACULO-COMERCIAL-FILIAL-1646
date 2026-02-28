@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "api/analysis.ts": {
-      "runtime": "nodejs"
-    }
-  }
-}
