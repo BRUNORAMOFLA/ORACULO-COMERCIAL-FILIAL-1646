@@ -118,6 +118,17 @@ export interface Simulator {
   newClassification: string;
 }
 
+export interface HistoryRecord {
+  id: string;
+  tipo: PeriodType;
+  dataReferencia: string;
+  dados: OracleData;
+}
+
+export interface OracleHistory {
+  registros: HistoryRecord[];
+}
+
 export interface OracleData {
   store: Store;
   sellers: Seller[];

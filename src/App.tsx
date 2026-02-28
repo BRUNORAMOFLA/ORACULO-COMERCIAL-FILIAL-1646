@@ -3,14 +3,15 @@ import { useState, useMemo, useEffect } from 'react';
 import { DataInput } from './components/DataInput';
 import { Dashboard } from './components/Dashboard';
 import { AISummary } from './components/AISummary';
-import { OracleData } from './types/oracle';
+import { OracleData, OracleHistory, HistoryRecord } from './types/oracle';
 import { processOracle } from './logic/oracleProcessor';
 import { motion, AnimatePresence } from 'motion/react';
 import { CrystalBall } from './components/CrystalBall';
-import { LayoutDashboard, FileInput, Info, Save, Clock, RotateCcw } from 'lucide-react';
+import { LayoutDashboard, FileInput, Info, Save, Clock, RotateCcw, History } from 'lucide-react';
 import { formatDateTimeBR } from './utils/formatters';
 
 const STORAGE_KEY = 'oraculo-comercial-storage';
+const HISTORY_KEY = 'oraculo-comercial-historico';
 
 const INITIAL_STATE: OracleData = {
   store: {
@@ -61,6 +62,10 @@ export default function App() {
   });
   
   const [activeTab, setActiveTab] = useState<'input' | 'dashboard'>('input');
+  const [history, setHistory] = useState<OracleHistory>(() => {
+    const saved = localStorage.getItem(HISTORY_KEY);
+    return saved ? JSON.parse(saved) : { registros: [] };
+  });
 
   const processedData = useMemo(() => processOracle(data), [data]);
 
@@ -68,14 +73,59 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }, [data]);
 
+  useEffect(() => {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }, [history]);
+
+  const generateRecordId = (d: OracleData) => {
+    const p = d.store.period;
+    switch (p.type) {
+      case 'daily': return p.date || 'no-date';
+      case 'monthly': return `${p.year}-${String(p.month).padStart(2, '0')}`;
+      case 'weekly':
+      case 'custom': return `${p.startDate}_${p.endDate}`;
+      default: return 'unknown';
+    }
+  };
+
   const handleSave = () => {
-    console.log('Saving Oracle Data:', processedData);
-    setActiveTab('dashboard');
+    const recordId = generateRecordId(data);
+    const existingIndex = history.registros.findIndex(r => r.id === recordId);
+    
+    const newRecord: HistoryRecord = {
+      id: recordId,
+      tipo: data.store.period.type,
+      dataReferencia: recordId,
+      dados: { ...data, generatedAt: new Date().toISOString() }
+    };
+
+    if (existingIndex >= 0) {
+      if (window.confirm(`Já existe um registro para ${recordId}. Deseja atualizar os dados existentes?`)) {
+        const newRegistros = [...history.registros];
+        newRegistros[existingIndex] = newRecord;
+        setHistory({ registros: newRegistros });
+        setData(newRecord.dados);
+        setActiveTab('dashboard');
+      }
+    } else {
+      setHistory({ registros: [newRecord, ...history.registros] });
+      setData(newRecord.dados);
+      setActiveTab('dashboard');
+    }
+  };
+
+  const loadFromHistory = (recordId: string) => {
+    const record = history.registros.find(r => r.id === recordId);
+    if (record) {
+      setData(record.dados);
+      setActiveTab('dashboard');
+    }
   };
 
   const resetData = () => {
     if (window.confirm("Tem certeza que deseja apagar todos os dados? Essa ação não pode ser desfeita.")) {
       localStorage.removeItem("oraculo-comercial-storage");
+      localStorage.removeItem("oraculo-comercial-historico");
       window.location.reload();
     }
   };
@@ -96,6 +146,20 @@ export default function App() {
           </div>
 
           <nav className="flex bg-zinc-100 p-1 rounded-xl flex-shrink-0">
+            {history.registros.length > 0 && (
+              <div className="mr-2 flex items-center">
+                <select 
+                  onChange={(e) => loadFromHistory(e.target.value)}
+                  className="bg-white border-none text-[10px] md:text-xs font-bold px-2 py-1.5 rounded-lg outline-none cursor-pointer text-zinc-600 hover:text-zinc-900 transition-colors"
+                  defaultValue=""
+                >
+                  <option value="" disabled>CARREGAR HISTÓRICO</option>
+                  {history.registros.map(r => (
+                    <option key={r.id} value={r.id}>{r.id} ({r.tipo})</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button 
               onClick={() => setActiveTab('input')}
               className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all ${activeTab === 'input' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
