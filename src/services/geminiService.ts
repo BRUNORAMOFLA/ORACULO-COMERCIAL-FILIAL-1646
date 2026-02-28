@@ -32,11 +32,7 @@ Analise os seguintes dados da loja ${data.store.name} para o período de ${getPe
   const result = await response.json();
 
   return result.result;
-}      ],
-      temperature: 0.6,
-    });
-
-    return response.choices[0]?.message?.content || "";
+} 
   } catch (error) {
     console.error("Erro ao gerar análise:", error);
     return "Erro ao processar análise estratégica.";
