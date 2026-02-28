@@ -4,12 +4,13 @@ import { DataInput } from './components/DataInput';
 import { Dashboard } from './components/Dashboard';
 import { AISummary } from './components/AISummary';
 import { DataImporter } from './components/DataImporter';
-import { OracleData, OracleHistory, HistoryRecord } from './types/oracle';
+import { OracleData, OracleHistory, HistoryRecord, Period } from './types/oracle';
 import { processOracle } from './logic/oracleProcessor';
 import { motion, AnimatePresence } from 'motion/react';
 import { CrystalBall } from './components/CrystalBall';
-import { LayoutDashboard, FileInput, Info, Save, Clock, RotateCcw, History } from 'lucide-react';
+import { LayoutDashboard, FileInput, Info, Save, Clock, RotateCcw, History, CheckCircle2, AlertCircle } from 'lucide-react';
 import { formatDateTimeBR } from './utils/formatters';
+import { SwitchPeriodModal } from './components/SwitchPeriodModal';
 
 const STORAGE_KEY = 'oraculo-comercial-storage';
 const HISTORY_KEY = 'oraculo-comercial-historico';
@@ -21,6 +22,10 @@ const INITIAL_STATE: OracleData = {
       type: 'daily',
       label: '',
       date: new Date().toISOString().split('T')[0],
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
       businessDaysTotal: 25,
       businessDaysElapsed: 10
     },
@@ -63,9 +68,21 @@ export default function App() {
   });
   
   const [activeTab, setActiveTab] = useState<'input' | 'dashboard'>('input');
+  const [isDirty, setIsDirty] = useState(false);
+  const [pendingPeriodChange, setPendingPeriodChange] = useState<Period | null>(null);
+  const [autoSave, setAutoSave] = useState(false);
+  
   const [history, setHistory] = useState<OracleHistory>(() => {
-    const saved = localStorage.getItem(HISTORY_KEY);
-    return saved ? JSON.parse(saved) : { registros: [] };
+    try {
+      const saved = localStorage.getItem(HISTORY_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.registros ? parsed : { registros: [] };
+      }
+    } catch (e) {
+      console.error("Error loading history:", e);
+    }
+    return { registros: [] };
   });
 
   const processedData = useMemo(() => processOracle(data), [data]);
@@ -79,46 +96,107 @@ export default function App() {
   }, [history]);
 
   const generateRecordId = (d: OracleData) => {
-    const p = d.store.period;
+    const s = d.store;
+    const p = s.period;
+    const storePart = (s.name || 'LOJA').replace(/\s+/g, '').toUpperCase();
+    const yearPart = p.year || new Date().getFullYear();
+    const typePart = p.type;
+    
+    let idPart = '';
     switch (p.type) {
-      case 'daily': return p.date || 'no-date';
-      case 'monthly': return `${p.year}-${String(p.month).padStart(2, '0')}`;
+      case 'daily': idPart = p.date || 'no-date'; break;
+      case 'monthly': idPart = String(p.month || 1).padStart(2, '0'); break;
       case 'weekly':
-      case 'custom': return `${p.startDate}_${p.endDate}`;
-      default: return 'unknown';
+      case 'custom': idPart = `${p.startDate}_${p.endDate}`; break;
+      default: idPart = 'unknown';
+    }
+    
+    return `${storePart}-${yearPart}-${typePart}-${idPart}`;
+  };
+
+  useEffect(() => {
+    if (autoSave && isDirty) {
+      const timer = setTimeout(() => {
+        handleSave(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [data, autoSave, isDirty]);
+
+  const handleDataChange = (newData: OracleData) => {
+    setData(newData);
+    setIsDirty(true);
+  };
+
+  const handleSave = (silent = false) => {
+    try {
+      const recordId = generateRecordId(data);
+      const registros = history?.registros || [];
+      const existingIndex = registros.findIndex(r => r.id === recordId);
+      
+      const newRecord: HistoryRecord = {
+        id: recordId,
+        tipo: data.store.period.type,
+        dataReferencia: recordId,
+        dados: JSON.parse(JSON.stringify({ ...data, generatedAt: new Date().toISOString() }))
+      };
+
+      const newRegistros = [...registros];
+      if (existingIndex >= 0) {
+        newRegistros[existingIndex] = newRecord;
+      } else {
+        newRegistros.unshift(newRecord);
+      }
+
+      setHistory({ registros: newRegistros });
+      setData(newRecord.dados);
+      setIsDirty(false);
+      
+      if (!silent) {
+        setActiveTab('dashboard');
+      }
+      return true;
+    } catch (err) {
+      console.error("Error saving record:", err);
+      if (!silent) alert("Erro ao salvar os dados.");
+      return false;
     }
   };
 
-  const handleSave = () => {
-    const recordId = generateRecordId(data);
-    const existingIndex = history.registros.findIndex(r => r.id === recordId);
-    
-    const newRecord: HistoryRecord = {
-      id: recordId,
-      tipo: data.store.period.type,
-      dataReferencia: recordId,
-      dados: { ...data, generatedAt: new Date().toISOString() }
-    };
-
-    if (existingIndex >= 0) {
-      if (window.confirm(`Já existe um registro para ${recordId}. Deseja atualizar os dados existentes?`)) {
-        const newRegistros = [...history.registros];
-        newRegistros[existingIndex] = newRecord;
-        setHistory({ registros: newRegistros });
-        setData(newRecord.dados);
-        setActiveTab('dashboard');
-      }
+  const handlePeriodChangeRequest = (newPeriod: Period) => {
+    if (isDirty) {
+      setPendingPeriodChange(newPeriod);
     } else {
-      setHistory({ registros: [newRecord, ...history.registros] });
-      setData(newRecord.dados);
-      setActiveTab('dashboard');
+      applyPeriodChange(newPeriod);
     }
+  };
+
+  const applyPeriodChange = (newPeriod: Period) => {
+    const newData = JSON.parse(JSON.stringify(data));
+    newData.store.period = newPeriod;
+    
+    const newRecordId = generateRecordId(newData);
+    const existingRecord = history.registros.find(r => r.id === newRecordId);
+
+    if (existingRecord) {
+      setData(JSON.parse(JSON.stringify(existingRecord.dados)));
+    } else {
+      // Start fresh for this period, but keep store name
+      const freshData = JSON.parse(JSON.stringify(INITIAL_STATE));
+      freshData.store.name = data.store.name;
+      freshData.store.period = newPeriod;
+      setData(freshData);
+    }
+    
+    setIsDirty(false);
+    setPendingPeriodChange(null);
   };
 
   const loadFromHistory = (recordId: string) => {
     const record = history.registros.find(r => r.id === recordId);
     if (record) {
-      setData(record.dados);
+      setData(JSON.parse(JSON.stringify(record.dados)));
+      setIsDirty(false);
       setActiveTab('dashboard');
     }
   };
@@ -131,6 +209,17 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-zinc-900 font-sans selection:bg-zinc-900 selection:text-white">
       {/* Header */}
@@ -142,11 +231,26 @@ export default function App() {
             </div>
             <div className="truncate">
               <h1 className="text-sm md:text-lg font-bold tracking-tight leading-none truncate">ORÁCULO COMERCIAL</h1>
-              <p className="hidden xs:block text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-zinc-400 mt-1 truncate">Gestão Estratégica</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="hidden xs:block text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-zinc-400 truncate">Gestão Estratégica</p>
+                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${isDirty ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+                  {isDirty ? <><AlertCircle size={8} /> Alterações não salvas</> : <><CheckCircle2 size={8} /> Dados Salvos</>}
+                </div>
+              </div>
             </div>
           </div>
 
-          <nav className="flex bg-zinc-100 p-1 rounded-xl flex-shrink-0">
+          <nav className="flex items-center bg-zinc-100 p-1 rounded-xl flex-shrink-0 gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg shadow-sm">
+              <span className="text-[8px] font-black uppercase text-zinc-400">Auto-Save</span>
+              <button 
+                onClick={() => setAutoSave(!autoSave)}
+                className={`w-8 h-4 rounded-full transition-all relative ${autoSave ? 'bg-emerald-500' : 'bg-zinc-300'}`}
+              >
+                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${autoSave ? 'left-4.5' : 'left-0.5'}`} />
+              </button>
+            </div>
+
             {history.registros.length > 0 && (
               <div className="mr-2 flex items-center">
                 <select 
@@ -188,10 +292,14 @@ export default function App() {
             >
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
-                  <DataInput data={data} onChange={setData} />
+                  <DataInput 
+                    data={data} 
+                    onChange={handleDataChange} 
+                    onPeriodChangeRequest={handlePeriodChangeRequest}
+                  />
                   <div className="mt-8">
                     <button 
-                      onClick={handleSave}
+                      onClick={() => handleSave()}
                       className="w-full py-4 bg-zinc-900 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 shadow-xl shadow-zinc-900/20"
                     >
                       <Save size={20} /> PROCESSAR E SALVAR
@@ -199,7 +307,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="space-y-6">
-                  <DataImporter onImport={setData} currentData={data} />
+                  <DataImporter onImport={handleDataChange} currentData={data} />
                   
                   <div className="p-6 border border-dashed border-zinc-300 rounded-2xl flex flex-col items-center text-center space-y-4">
                     <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center">
@@ -242,29 +350,49 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      <footer className="relative z-10 max-w-7xl mx-auto px-4 py-8 md:py-12 border-t border-black/5 flex flex-col sm:flex-row justify-between items-center gap-6 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
-          <span>© 2026 ORÁCULO COMERCIAL</span>
-          <span className="flex items-center gap-1"><Clock size={10} /> GERADO EM: {formatDateTimeBR(processedData.generatedAt)}</span>
-        </div>
-        <div className="flex flex-wrap gap-4 sm:gap-6 items-center justify-center sm:justify-end">
-          <button 
-            type="button"
-            id="reset-button"
-            onClick={(e) => {
-              e.preventDefault();
-              resetData();
-            }}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-all cursor-pointer border border-red-100 active:scale-95 min-h-[44px] shadow-sm relative z-20"
-          >
-            <RotateCcw size={14} className="pointer-events-none" /> LIMPAR DADOS
-          </button>
-          <div className="flex gap-4">
-            <span>Integridade de Dados: 100%</span>
-            <span>Versão: 2.1.0</span>
+      <footer className="relative z-10 max-w-7xl mx-auto px-4 py-8 md:py-12 border-t border-black/5 flex flex-col gap-8 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-6 w-full">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
+            <span>© 2026 ORÁCULO COMERCIAL</span>
+            <span className="flex items-center gap-1"><Clock size={10} /> GERADO EM: {formatDateTimeBR(processedData.generatedAt)}</span>
+          </div>
+          <div className="flex flex-wrap gap-4 sm:gap-6 items-center justify-center sm:justify-end">
+            <button 
+              type="button"
+              id="reset-button"
+              onClick={(e) => {
+                e.preventDefault();
+                resetData();
+              }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-all cursor-pointer border border-red-100 active:scale-95 min-h-[44px] shadow-sm relative z-20"
+            >
+              <RotateCcw size={14} className="pointer-events-none" /> LIMPAR DADOS
+            </button>
+            <div className="flex gap-4">
+              <span>Integridade de Dados: 100%</span>
+              <span>Versão: 2.1.0</span>
+            </div>
           </div>
         </div>
+
+        <div className="flex flex-col items-center text-center opacity-30 space-y-0.5">
+          <span className="text-[8px] tracking-[0.3em]">ORÁCULO COMERCIAL</span>
+          <span className="text-[7px] tracking-widest font-medium lowercase italic normal-case">Idealizado por Bruno Ramos</span>
+        </div>
       </footer>
+
+      <SwitchPeriodModal 
+        isOpen={!!pendingPeriodChange}
+        onSaveAndContinue={() => {
+          if (handleSave(true)) {
+            applyPeriodChange(pendingPeriodChange!);
+          }
+        }}
+        onContinueWithoutSaving={() => {
+          applyPeriodChange(pendingPeriodChange!);
+        }}
+        onCancel={() => setPendingPeriodChange(null)}
+      />
     </div>
   );
 }

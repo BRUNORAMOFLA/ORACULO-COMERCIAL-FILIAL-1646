@@ -7,11 +7,12 @@ import { NumberInput } from './NumberInput';
 interface Props {
   data: OracleData;
   onChange: (newData: OracleData) => void;
+  onPeriodChangeRequest: (newPeriod: any) => void;
 }
 
-export const DataInput: React.FC<Props> = ({ data, onChange }) => {
+export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeRequest }) => {
   const updateStorePillar = (pillar: 'mercantil' | 'cdc' | 'services', field: string, value: number) => {
-    const newData = { ...data };
+    const newData: OracleData = JSON.parse(JSON.stringify(data));
     if (field.includes('.')) {
       const [sub, subField] = field.split('.');
       (newData.store.pillars[pillar] as any)[sub][subField] = value;
@@ -22,15 +23,15 @@ export const DataInput: React.FC<Props> = ({ data, onChange }) => {
   };
 
   const updateStoreOperational = (type: 'cards' | 'combos', field: string, value: number) => {
-    const newData = { ...data };
+    const newData: OracleData = JSON.parse(JSON.stringify(data));
     (newData.store.pillars.operational[type] as any)[field] = value;
     onChange(newData);
   };
 
   const updateStorePeriod = (field: string, value: any) => {
-    const newData = { ...data };
-    (newData.store.period as any)[field] = value;
-    onChange(newData);
+    const newPeriod = JSON.parse(JSON.stringify(data.store.period));
+    newPeriod[field] = value;
+    onPeriodChangeRequest(newPeriod);
   };
 
   const addSeller = () => {
@@ -58,7 +59,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange }) => {
   };
 
   const updateSeller = (id: string, field: string, value: any) => {
-    const newData = { ...data };
+    const newData: OracleData = JSON.parse(JSON.stringify(data));
     const seller = newData.sellers.find(s => s.id === id);
     if (seller) {
       if (field.includes('.')) {

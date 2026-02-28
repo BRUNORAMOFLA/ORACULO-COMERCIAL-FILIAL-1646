@@ -30,6 +30,8 @@ import {
   CartesianGrid 
 } from 'recharts';
 import { formatNumberBR, formatCurrencyBR } from '../utils/formatters';
+import { FeedbackModal } from './FeedbackModal';
+import { Seller } from '../types/oracle';
 
 interface Props {
   data: OracleData;
@@ -37,6 +39,7 @@ interface Props {
 
 export const Dashboard: React.FC<Props> = ({ data }) => {
   const [activeTab, setActiveTab] = useState<'crown' | 'mvp'>('crown');
+  const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
 
   const healthData = [
     { name: 'Saúde', value: data.store.healthIndex },
@@ -215,12 +218,16 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
                   {tripleCrownSellers.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {tripleCrownSellers.map(s => (
-                        <div key={s.id} className="flex items-center gap-3 p-3 border rounded-xl bg-zinc-50">
+                        <button 
+                          key={s.id} 
+                          onClick={() => setSelectedSeller(s)}
+                          className="flex items-center gap-3 p-3 border rounded-xl bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
+                        >
                           <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
                             <Star size={16} fill="currentColor" />
                           </div>
-                          <span className="text-sm font-bold text-zinc-900">{s.name}</span>
-                        </div>
+                          <span className="text-sm font-bold text-zinc-900 underline decoration-zinc-200 underline-offset-4">{s.name}</span>
+                        </button>
                       ))}
                     </div>
                   ) : (
@@ -249,7 +256,12 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
                     <div className="flex-1 space-y-4 text-center md:text-left">
                       <div>
                         <span className="text-[10px] font-black uppercase text-amber-600 block tracking-widest">Most Valuable Player</span>
-                        <h4 className="text-2xl font-black text-zinc-900">{mvpSeller.name}</h4>
+                        <button 
+                          onClick={() => setSelectedSeller(mvpSeller)}
+                          className="text-2xl font-black text-zinc-900 hover:opacity-70 transition-opacity underline decoration-zinc-200 underline-offset-4"
+                        >
+                          {mvpSeller.name}
+                        </button>
                       </div>
                       <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
                         <p className="text-xs text-zinc-600 leading-relaxed italic">"{data.mvpJustification}"</p>
@@ -362,10 +374,13 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
                 <tr key={s.id} className="group hover:bg-zinc-50 transition-colors">
                   <td className="py-4 px-2 text-xs font-bold text-zinc-400">#{idx + 1}</td>
                   <td className="py-4 px-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-zinc-900">{s.name || `Vendedor ${idx + 1}`}</span>
+                    <button 
+                      onClick={() => setSelectedSeller(s)}
+                      className="flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
+                    >
+                      <span className="text-sm font-bold text-zinc-900 underline decoration-zinc-200 underline-offset-4">{s.name || `Vendedor ${idx + 1}`}</span>
                       {s.isTripleCrown && <Award size={14} className="text-amber-500" />}
-                    </div>
+                    </button>
                   </td>
                   <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.mercantil.icm.toFixed(1)}%</td>
                   <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.cdc.icm.toFixed(1)}%</td>
@@ -389,6 +404,16 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
           </table>
         </div>
       </div>
+
+      <AnimatePresence>
+        {selectedSeller && (
+          <FeedbackModal 
+            seller={selectedSeller} 
+            period={data.store.period} 
+            onClose={() => setSelectedSeller(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
