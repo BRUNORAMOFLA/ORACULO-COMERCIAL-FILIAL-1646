@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { DataInput } from './components/DataInput';
 import { Dashboard } from './components/Dashboard';
 import { AISummary } from './components/AISummary';
+import { DataImporter } from './components/DataImporter';
 import { OracleData, OracleHistory, HistoryRecord } from './types/oracle';
 import { processOracle } from './logic/oracleProcessor';
 import { motion, AnimatePresence } from 'motion/react';
@@ -198,30 +199,13 @@ export default function App() {
                   </div>
                 </div>
                 <div className="space-y-6">
-                  <div className="bg-zinc-900 text-white p-6 rounded-2xl shadow-xl">
-                    <h3 className="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <Info size={16} /> Arquitetura Estrutural
-                    </h3>
-                    <ul className="space-y-3 text-xs text-zinc-400 leading-relaxed">
-                      <li className="flex gap-2">
-                        <span className="text-white">•</span>
-                        <span>Modelo de dados centralizado e serializável.</span>
-                      </li>
-                      <li className="flex gap-2">
-                        <span className="text-white">•</span>
-                        <span>Cálculos automáticos de ICM, GAP e Score.</span>
-                      </li>
-                      <li className="flex gap-2">
-                        <span className="text-white">•</span>
-                        <span>Detecção de Tríplice Coroa e Dependência.</span>
-                      </li>
-                    </ul>
-                  </div>
+                  <DataImporter onImport={setData} currentData={data} />
+                  
                   <div className="p-6 border border-dashed border-zinc-300 rounded-2xl flex flex-col items-center text-center space-y-4">
                     <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center">
                       <CrystalBall />
                     </div>
-                    <p className="text-xs text-zinc-500 font-medium">O Oráculo processa os dados em tempo real através da camada de lógica centralizada.</p>
+                    <p className="text-xs text-zinc-500 font-medium uppercase font-bold tracking-tight">O Oráculo processa os dados em tempo real através da camada de lógica centralizada.</p>
                   </div>
                 </div>
               </div>
