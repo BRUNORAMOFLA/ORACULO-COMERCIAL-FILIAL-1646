@@ -15,6 +15,61 @@ import { SwitchPeriodModal } from './components/SwitchPeriodModal';
 const STORAGE_KEY = 'oraculo-comercial-storage';
 const HISTORY_KEY = 'oraculo-comercial-historico';
 
+const getWeekNumber = (d: Date) => {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return weekNo;
+};
+
+const formatHistoryLabel = (id: string) => {
+  if (!id || typeof id !== 'string') return "Registro inválido";
+  const parts = id.split('-');
+  if (parts.length < 4) return "Registro legado (revisar)";
+
+  const year = parts[1];
+  const type = parts[2].toLowerCase();
+  const identifier = parts.slice(3).join('-');
+
+  const months = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  ];
+
+  if (type === 'monthly' || type === 'mensal') {
+    const monthIndex = parseInt(identifier) - 1;
+    if (monthIndex >= 0 && monthIndex < 12) {
+      return `${months[monthIndex]} ${year} – Mensal`;
+    }
+  }
+
+  if (type === 'weekly' || type === 'semanal') {
+    let weekDisplay = identifier;
+    if (identifier.includes('_')) {
+      // Fallback for old range-based format
+      try {
+        const date = new Date(identifier.split('_')[0]);
+        weekDisplay = String(getWeekNumber(date));
+      } catch (e) {
+        weekDisplay = identifier;
+      }
+    }
+    const cleanWeek = weekDisplay.replace(/[^0-9]/g, '');
+    return `Semana ${cleanWeek.padStart(2, '0')} – ${year}`;
+  }
+
+  if (type === 'daily' || type === 'diario') {
+    const dateParts = identifier.split('-');
+    if (dateParts.length === 3) {
+      return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]} – Diário`;
+    }
+  }
+
+  return `Registro: ${id}`;
+};
+
 const INITIAL_STATE: OracleData = {
   store: {
     name: 'Loja 1646',
@@ -107,6 +162,9 @@ export default function App() {
       case 'daily': idPart = p.date || 'no-date'; break;
       case 'monthly': idPart = String(p.month || 1).padStart(2, '0'); break;
       case 'weekly':
+        const weekNum = p.startDate ? getWeekNumber(new Date(p.startDate)) : getWeekNumber(new Date());
+        idPart = String(weekNum).padStart(2, '0');
+        break;
       case 'custom': idPart = `${p.startDate}_${p.endDate}`; break;
       default: idPart = 'unknown';
     }
@@ -260,7 +318,7 @@ export default function App() {
                 >
                   <option value="" disabled>CARREGAR HISTÓRICO</option>
                   {history.registros.map(r => (
-                    <option key={r.id} value={r.id}>{r.id} ({r.tipo})</option>
+                    <option key={r.id} value={r.id}>{formatHistoryLabel(r.id)}</option>
                   ))}
                 </select>
               </div>
