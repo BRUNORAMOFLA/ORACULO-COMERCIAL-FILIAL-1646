@@ -21,6 +21,7 @@ Analise os seguintes dados da loja ${data.store.name} para o período de ${getPe
 (cole aqui exatamente o mesmo prompt que você já tem)
 `;
 
+try {
   const response = await fetch("/api/analysis", {
     method: "POST",
     headers: {
@@ -32,9 +33,9 @@ Analise os seguintes dados da loja ${data.store.name} para o período de ${getPe
   const result = await response.json();
 
   return result.result;
-} 
-  } catch (error) {
-    console.error("Erro ao gerar análise:", error);
-    return "Erro ao processar análise estratégica.";
-  }
+
+} catch (error) {
+  console.error("Erro ao gerar análise:", error);
+  return "Erro ao processar análise estratégica.";
+}
 }
