@@ -19,20 +19,20 @@ export const SwitchPeriodModal: React.FC<Props> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-primary/60 backdrop-blur-sm">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-black/5"
+            className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-primary/10"
           >
             <div className="p-8 space-y-6">
               <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600">
+                <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
                   <AlertTriangle size={32} />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-zinc-900">Alterações não salvas</h3>
+                  <h3 className="text-xl font-bold text-primary">Alterações não salvas</h3>
                   <p className="text-sm text-zinc-500 leading-relaxed">
                     Existem alterações neste período. Deseja salvar os dados atuais antes de mudar para o novo período?
                   </p>
@@ -42,9 +42,9 @@ export const SwitchPeriodModal: React.FC<Props> = ({
               <div className="space-y-3">
                 <button
                   onClick={onSaveAndContinue}
-                  className="w-full py-4 bg-zinc-900 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-900/20"
+                  className="w-full py-4 bg-primary text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
                 >
-                  <Save size={18} /> SALVAR E AVANÇAR
+                  <Save size={18} className="text-accent" /> SALVAR E AVANÇAR
                 </button>
                 <button
                   onClick={onContinueWithoutSaving}

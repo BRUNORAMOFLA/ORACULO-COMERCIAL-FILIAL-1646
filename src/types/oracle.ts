@@ -87,6 +87,12 @@ export interface Seller {
   score: number;
   classification: string;
   isTripleCrown: boolean;
+  intelligence?: {
+    trend: TrendAnalysis;
+    consistency: number;
+    consistencyReading: string;
+    riskAlert?: string;
+  };
 }
 
 export interface Distribution {
@@ -129,6 +135,21 @@ export interface OracleHistory {
   registros: HistoryRecord[];
 }
 
+export interface IntelligenceRadar {
+  strongestPillar: string;
+  vulnerablePillar: string;
+  risingSeller: string;
+  riskySeller: string;
+  generalTrend: string;
+  dispersionLevel: string;
+}
+
+export interface TrendAnalysis {
+  mercantil: string;
+  cdc: string;
+  services: string;
+}
+
 export interface OracleData {
   store: Store;
   sellers: Seller[];
@@ -140,6 +161,13 @@ export interface OracleData {
   generatedAt: string;
   mvpJustification?: string;
   mvpId?: string;
+  intelligence?: {
+    radar: IntelligenceRadar;
+    storeTrend: TrendAnalysis;
+    concentrationRisk: string;
+    healthScore: number;
+    healthReading: string;
+  };
 }
 
 export type OracleResult = OracleData;

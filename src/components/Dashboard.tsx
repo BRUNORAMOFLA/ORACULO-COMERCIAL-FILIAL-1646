@@ -5,6 +5,7 @@ import {
   Activity, 
   Target, 
   TrendingUp, 
+  TrendingDown,
   Users, 
   ShieldAlert, 
   Award,
@@ -31,22 +32,38 @@ import {
 } from 'recharts';
 import { formatNumberBR, formatCurrencyBR } from '../utils/formatters';
 import { FeedbackModal } from './FeedbackModal';
-import { Seller } from '../types/oracle';
+import { Seller, OracleResult } from '../types/oracle';
+import { IntelligenceRadar } from './IntelligenceRadar';
+import { 
+  exportToExcel, 
+  exportToPDF, 
+  exportToPNG, 
+  generateWhatsAppText 
+} from '../utils/exporters';
+import { 
+  Download, 
+  FileSpreadsheet, 
+  FileText, 
+  Image as ImageIcon, 
+  MessageSquare, 
+  Share2 
+} from 'lucide-react';
 
 interface Props {
-  data: OracleData;
+  data: OracleResult;
 }
 
 export const Dashboard: React.FC<Props> = ({ data }) => {
   const [activeTab, setActiveTab] = useState<'crown' | 'mvp'>('crown');
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const healthData = [
     { name: 'Saúde', value: data.store.healthIndex },
     { name: 'Restante', value: Math.max(0, 100 - data.store.healthIndex) },
   ];
 
-  const COLORS = ['#18181b', '#f4f4f5'];
+  const COLORS = ['#0047BA', '#f4f4f5'];
 
   const getHealthColor = (classification: string) => {
     if (classification.includes('Alta')) return 'text-emerald-600';
@@ -58,53 +75,112 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
   const tripleCrownSellers = data.sellers.filter(s => s.isTripleCrown);
   const mvpSeller = data.sellers.find(s => s.id === data.mvpId);
 
+  const filename = `Oraculo_Comercial_${data.store.name}_${data.store.period.label.replace(/\//g, '-')}`;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8" id="dashboard-content">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-export">
+        <div className="flex items-center gap-2">
+          <Activity size={20} className="text-primary" />
+          <h2 className="text-lg font-bold text-primary uppercase tracking-tight">Painel de Inteligência Comercial</h2>
+        </div>
+        
+        <div className="relative">
+          <button 
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10"
+          >
+            <Share2 size={14} className="text-accent" /> EXPORTAR RELATÓRIO
+          </button>
+          
+          <AnimatePresence>
+            {showExportMenu && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-black/5 p-2 z-[100] space-y-1"
+              >
+                <button 
+                  onClick={() => { exportToExcel(data); setShowExportMenu(false); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-50 rounded-xl text-xs font-bold text-zinc-600 transition-colors"
+                >
+                  <FileSpreadsheet size={16} className="text-emerald-600" /> Excel Analítico
+                </button>
+                <button 
+                  onClick={() => { exportToPDF('dashboard-content', filename); setShowExportMenu(false); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-50 rounded-xl text-xs font-bold text-zinc-600 transition-colors"
+                >
+                  <FileText size={16} className="text-red-600" /> PDF Executivo
+                </button>
+                <button 
+                  onClick={() => { exportToPNG('dashboard-content', filename); setShowExportMenu(false); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-50 rounded-xl text-xs font-bold text-zinc-600 transition-colors"
+                >
+                  <ImageIcon size={16} className="text-blue-600" /> PNG Estilo Slide
+                </button>
+                <a 
+                  href={`https://wa.me/?text=${generateWhatsAppText(data)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowExportMenu(false)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-50 rounded-xl text-xs font-bold text-zinc-600 transition-colors"
+                >
+                  <MessageSquare size={16} className="text-emerald-500" /> Texto WhatsApp
+                </a>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <IntelligenceRadar data={data} />
+      
       {/* Top Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 rounded-2xl border border-black/5 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
           <div className="flex justify-between items-start mb-2">
             <span className="text-[10px] font-bold uppercase text-zinc-400">Saúde da Unidade</span>
-            <Activity size={14} className="text-zinc-300" />
+            <Activity size={14} className="text-accent" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-zinc-900">{data.store.healthIndex.toFixed(1)}%</span>
+            <span className="text-2xl font-black text-primary">{data.store.healthIndex.toFixed(1)}%</span>
             <span className={`text-[9px] font-bold uppercase ${getHealthColor(data.store.classification)}`}>{data.store.classification}</span>
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white p-4 rounded-2xl border border-black/5 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
           <div className="flex justify-between items-start mb-2">
             <span className="text-[10px] font-bold uppercase text-zinc-400">Execução Operacional</span>
-            <Package size={14} className="text-zinc-300" />
+            <Package size={14} className="text-primary" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-zinc-900">
+            <span className="text-2xl font-black text-primary">
               {((data.store.pillars.operational.cards.achievement + data.store.pillars.operational.combos.achievement) / 2).toFixed(0)}%
             </span>
             <span className="text-[9px] font-bold uppercase text-zinc-500">Cartões/Combos</span>
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white p-4 rounded-2xl border border-black/5 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
           <div className="flex justify-between items-start mb-2">
             <span className="text-[10px] font-bold uppercase text-zinc-400">Nível de Dependência</span>
-            <ShieldAlert size={14} className="text-zinc-300" />
+            <ShieldAlert size={14} className="text-accent" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-zinc-900">{data.distribution.top1Contribution.toFixed(1)}%</span>
+            <span className="text-2xl font-black text-primary">{data.distribution.top1Contribution.toFixed(1)}%</span>
             <span className="text-[9px] font-bold uppercase text-zinc-500">{data.distribution.dependencyLevel}</span>
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white p-4 rounded-2xl border border-black/5 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
           <div className="flex justify-between items-start mb-2">
             <span className="text-[10px] font-bold uppercase text-zinc-400">Projeção de Fechamento</span>
-            <TrendingUp size={14} className="text-zinc-300" />
+            <TrendingUp size={14} className="text-emerald-500" />
           </div>
           <div className="space-y-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-zinc-900">{data.projection.probability}</span>
+              <span className="text-2xl font-black text-primary">{data.projection.probability}</span>
               <span className="text-[9px] font-bold uppercase text-zinc-500">Tendência</span>
             </div>
             <p className="text-[8px] font-bold text-zinc-400 uppercase">Base: média diária × dias úteis restantes</p>
@@ -113,19 +189,19 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-zinc-900 text-white p-4 rounded-2xl flex items-center justify-between">
+        <div className="bg-primary text-white p-4 rounded-2xl flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold uppercase text-zinc-500 block">Período de Análise</span>
+            <span className="text-[10px] font-bold uppercase text-white/50 block">Período de Análise</span>
             <span className="text-sm font-bold">{data.store.period.label || "Período não definido"}</span>
           </div>
-          <Calendar size={20} className="text-zinc-700" />
+          <Calendar size={20} className="text-accent" />
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-black/5 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase text-zinc-400 block">Maturidade do Time</span>
-            <span className="text-sm font-bold text-zinc-900">{data.maturityIndex.classification}</span>
+            <span className="text-sm font-bold text-primary">{data.maturityIndex.classification}</span>
           </div>
-          <Users size={20} className="text-zinc-200" />
+          <Users size={20} className="text-primary/20" />
         </div>
       </div>
 
@@ -194,13 +270,13 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
                 exit={{ opacity: 0, x: 10 }}
                 className="space-y-6"
               >
-                <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-zinc-900 text-white rounded-xl gap-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-primary text-white rounded-xl gap-4">
                   <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${Object.values(data.store.tripleCrownStatus).every(v => v) ? 'bg-amber-500' : 'bg-white/10'}`}>
-                      <Award size={20} className={Object.values(data.store.tripleCrownStatus).every(v => v) ? 'text-zinc-900' : 'text-white'} />
+                    <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${Object.values(data.store.tripleCrownStatus).every(v => v) ? 'bg-accent' : 'bg-white/10'}`}>
+                      <Award size={20} className={Object.values(data.store.tripleCrownStatus).every(v => v) ? 'text-white' : 'text-white'} />
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold uppercase text-zinc-400 block">Status da Unidade</span>
+                      <span className="text-[10px] font-bold uppercase text-white/50 block">Status da Unidade</span>
                       <span className="text-sm font-bold">{Object.values(data.store.tripleCrownStatus).every(v => v) ? 'TRÍPLICE COROA CONSOLIDADA' : 'EM BUSCA DA TRÍPLICE COROA'}</span>
                     </div>
                   </div>
@@ -246,19 +322,19 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
                 {mvpSeller ? (
                   <>
                     <div className="relative">
-                      <div className="w-32 h-32 rounded-full bg-zinc-900 flex items-center justify-center shadow-2xl">
+                      <div className="w-32 h-32 rounded-full bg-primary flex items-center justify-center shadow-2xl">
                         <span className="text-4xl font-black text-white">{mvpSeller.name.charAt(0)}</span>
                       </div>
-                      <div className="absolute -bottom-2 -right-2 bg-amber-500 p-2 rounded-full border-4 border-white">
-                        <Trophy size={20} className="text-zinc-900" />
+                      <div className="absolute -bottom-2 -right-2 bg-accent p-2 rounded-full border-4 border-white">
+                        <Trophy size={20} className="text-white" />
                       </div>
                     </div>
                     <div className="flex-1 space-y-4 text-center md:text-left">
                       <div>
-                        <span className="text-[10px] font-black uppercase text-amber-600 block tracking-widest">Most Valuable Player</span>
+                        <span className="text-[10px] font-black uppercase text-accent block tracking-widest">Most Valuable Player</span>
                         <button 
                           onClick={() => setSelectedSeller(mvpSeller)}
-                          className="text-2xl font-black text-zinc-900 hover:opacity-70 transition-opacity underline decoration-zinc-200 underline-offset-4"
+                          className="text-2xl font-black text-primary hover:opacity-70 transition-opacity underline decoration-primary/20 underline-offset-4"
                         >
                           {mvpSeller.name}
                         </button>
@@ -292,7 +368,7 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
       {/* Main Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Health Gauge */}
-        <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm flex flex-col items-center">
+        <div className="bg-white p-6 rounded-2xl border border-primary/10 shadow-sm flex flex-col items-center">
           <h3 className="text-xs font-bold uppercase text-zinc-400 mb-6 self-start">Performance Composta</h3>
           <div className="h-64 w-full relative">
             <ResponsiveContainer width="100%" height="100%">
@@ -313,14 +389,14 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pt-8">
-              <span className="text-5xl font-black text-zinc-900">{data.store.healthIndex.toFixed(0)}</span>
+              <span className="text-5xl font-black text-primary">{data.store.healthIndex.toFixed(0)}</span>
               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Score Global</span>
             </div>
           </div>
         </div>
 
         {/* Pillars Performance */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-black/5 shadow-sm">
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-primary/10 shadow-sm">
           <h3 className="text-xs font-bold uppercase text-zinc-400 mb-6">Execução por Pilar</h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -336,7 +412,7 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
                   cursor={{ fill: '#f8f9fa' }}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
                 />
-                <Bar dataKey="icm" name="ICM Atual" fill="#18181b" radius={[4, 4, 0, 0]} barSize={40} />
+                <Bar dataKey="icm" name="ICM Atual" fill="#0047BA" radius={[4, 4, 0, 0]} barSize={40} />
                 <Bar dataKey="proj" name="Projeção (%)" fill="#e4e4e7" radius={[4, 4, 0, 0]} barSize={40} />
               </BarChart>
             </ResponsiveContainer>
@@ -345,14 +421,14 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
       </div>
 
       {/* Seller Rankings */}
-      <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm">
+      <div className="bg-white p-6 rounded-2xl border border-primary/10 shadow-sm">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xs font-bold uppercase text-zinc-400">Ranking de Performance Individual</h3>
           <div className="flex gap-4 text-[10px] font-bold uppercase">
             <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Elite</div>
-            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500" /> Alto</div>
+            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-primary" /> Alto</div>
             <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500" /> Parcial</div>
-            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500" /> Risco</div>
+            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-accent" /> Risco</div>
           </div>
         </div>
         
@@ -378,25 +454,36 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
                       onClick={() => setSelectedSeller(s)}
                       className="flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
                     >
-                      <span className="text-sm font-bold text-zinc-900 underline decoration-zinc-200 underline-offset-4">{s.name || `Vendedor ${idx + 1}`}</span>
-                      {s.isTripleCrown && <Award size={14} className="text-amber-500" />}
+                      <span className="text-sm font-bold text-primary underline decoration-primary/20 underline-offset-4">{s.name || `Vendedor ${idx + 1}`}</span>
+                      {s.isTripleCrown && <Award size={14} className="text-accent" />}
                     </button>
                   </td>
                   <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.mercantil.icm.toFixed(1)}%</td>
                   <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.cdc.icm.toFixed(1)}%</td>
                   <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.services.icm.toFixed(1)}%</td>
                   <td className="py-4 px-2 text-right">
-                    <span className="text-sm font-black text-zinc-900">{s.score.toFixed(1)}%</span>
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-black text-primary">{s.score.toFixed(1)}%</span>
+                      {s.intelligence?.trend.mercantil.includes('alta') ? <TrendingUp size={10} className="text-emerald-500" /> : 
+                       s.intelligence?.trend.mercantil.includes('retração') ? <TrendingDown size={10} className="text-accent" /> : null}
+                    </div>
                   </td>
                   <td className="py-4 px-2 text-right">
-                    <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${
-                      s.classification === 'Elite' ? 'bg-emerald-50 text-emerald-700' :
-                      s.classification === 'Alto Contribuidor' ? 'bg-blue-50 text-blue-700' :
-                      s.classification === 'Parcial' ? 'bg-amber-50 text-amber-700' :
-                      'bg-red-50 text-red-700'
-                    }`}>
-                      {s.classification}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${
+                        s.classification === 'Elite' ? 'bg-emerald-50 text-emerald-700' :
+                        s.classification === 'Alto Contribuidor' ? 'bg-primary/10 text-primary' :
+                        s.classification === 'Parcial' ? 'bg-amber-50 text-amber-700' :
+                        'bg-accent/10 text-accent'
+                      }`}>
+                        {s.classification}
+                      </span>
+                      {s.intelligence?.riskAlert && (
+                        <div className="flex items-center gap-1 text-[8px] font-bold text-accent uppercase">
+                          <ShieldAlert size={10} /> Risco
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

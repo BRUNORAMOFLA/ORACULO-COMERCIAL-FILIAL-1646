@@ -173,13 +173,13 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
   };
 
   return (
-    <div className="bg-zinc-900 text-white p-6 rounded-2xl shadow-xl space-y-4">
+    <div className="bg-primary text-white p-6 rounded-2xl shadow-xl space-y-4">
       <div className="flex items-center gap-2 border-b border-white/10 pb-4">
-        <Download size={18} className="text-zinc-400" />
+        <Download size={18} className="text-accent" />
         <h3 className="text-sm font-bold uppercase tracking-widest">Importar Dados</h3>
       </div>
 
-      <p className="text-[10px] text-zinc-400 leading-relaxed uppercase font-bold">
+      <p className="text-[10px] text-white/50 leading-relaxed uppercase font-bold">
         Cole o boletim textual abaixo. O sistema extrairá automaticamente as metas e realizados da loja e dos vendedores.
       </p>
 
@@ -187,7 +187,7 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Cole o boletim aqui..."
-        className="w-full h-48 bg-zinc-800 border border-white/5 rounded-xl p-4 text-xs font-mono text-zinc-300 focus:ring-2 focus:ring-white/20 outline-none transition-all resize-none"
+        className="w-full h-48 bg-white/5 border border-white/5 rounded-xl p-4 text-xs font-mono text-white focus:ring-2 focus:ring-accent outline-none transition-all resize-none"
       />
 
       <button
@@ -197,8 +197,8 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
           status === 'success' 
             ? 'bg-emerald-500 text-white' 
             : status === 'error'
-            ? 'bg-red-500 text-white'
-            : 'bg-white text-zinc-900 hover:bg-zinc-200 disabled:opacity-50'
+            ? 'bg-accent text-white'
+            : 'bg-white text-primary hover:bg-zinc-200 disabled:opacity-50'
         }`}
       >
         {status === 'success' ? (

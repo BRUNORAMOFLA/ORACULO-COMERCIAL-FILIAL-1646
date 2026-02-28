@@ -79,10 +79,10 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Period & Store Info */}
-      <section className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm space-y-6">
+      <section className="bg-white p-4 md:p-6 rounded-2xl border border-primary/10 shadow-sm space-y-6">
         <div className="flex justify-between items-center border-b pb-4">
-          <h2 className="text-lg md:text-xl font-bold text-zinc-900 flex items-center gap-2">
-            <Calendar size={20} className="text-zinc-400" /> Período e Unidade
+          <h2 className="text-lg md:text-xl font-bold text-primary flex items-center gap-2">
+            <Calendar size={20} className="text-accent" /> Período e Unidade
           </h2>
           <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest text-zinc-400">Configuração Estrutural</span>
         </div>
@@ -91,7 +91,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
           <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase text-zinc-500">Nome da Loja</label>
             <input 
-              className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all"
+              className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
               value={data.store.name}
               onChange={e => onChange({ ...data, store: { ...data.store, name: e.target.value } })}
             />
@@ -99,7 +99,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
           <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase text-zinc-500">Tipo de Período</label>
             <select 
-              className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all"
+              className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
               value={data.store.period.type}
               onChange={e => updateStorePeriod('type', e.target.value as PeriodType)}
             >
@@ -115,7 +115,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
               <label className="text-[10px] font-bold uppercase text-zinc-500">Data</label>
               <input 
                 type="date"
-                className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all"
+                className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                 value={data.store.period.date}
                 onChange={e => updateStorePeriod('date', e.target.value)}
               />
@@ -128,7 +128,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
                 <label className="text-[10px] font-bold uppercase text-zinc-500">Início</label>
                 <input 
                   type="date"
-                  className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all"
+                  className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                   value={data.store.period.startDate}
                   onChange={e => updateStorePeriod('startDate', e.target.value)}
                 />
@@ -137,7 +137,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
                 <label className="text-[10px] font-bold uppercase text-zinc-500">Fim</label>
                 <input 
                   type="date"
-                  className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all"
+                  className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                   value={data.store.period.endDate}
                   onChange={e => updateStorePeriod('endDate', e.target.value)}
                 />
@@ -150,7 +150,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-zinc-500">Mês</label>
                 <select 
-                  className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all"
+                  className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                   value={data.store.period.month}
                   onChange={e => updateStorePeriod('month', Number(e.target.value))}
                 >
@@ -188,12 +188,12 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
       </section>
 
       {/* Store Pillars */}
-      <section className="bg-white p-4 md:p-6 rounded-2xl border border-black/5 shadow-sm space-y-6">
-        <h2 className="text-lg md:text-xl font-bold text-zinc-900 border-b pb-4">Metas da Unidade</h2>
+      <section className="bg-white p-4 md:p-6 rounded-2xl border border-primary/10 shadow-sm space-y-6">
+        <h2 className="text-lg md:text-xl font-bold text-primary border-b pb-4">Metas da Unidade</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {(['mercantil', 'cdc', 'services'] as const).map(p => (
             <div key={p} className="p-4 bg-zinc-50 rounded-xl space-y-4 border border-zinc-100">
-              <h3 className="text-xs font-black uppercase tracking-tighter text-zinc-900 text-center border-b pb-2">
+              <h3 className="text-xs font-black uppercase tracking-tighter text-primary text-center border-b pb-2">
                 {p === 'services' ? 'Serviços' : p}
               </h3>
               <div className="grid grid-cols-2 gap-3">
@@ -248,8 +248,8 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
           <div className="p-4 bg-zinc-50 rounded-xl space-y-4 border border-zinc-100">
-            <h3 className="text-xs font-black uppercase tracking-tighter text-zinc-900 text-center border-b pb-2 flex items-center justify-center gap-2">
-              <CreditCard size={14} /> Cartões
+            <h3 className="text-xs font-black uppercase tracking-tighter text-primary text-center border-b pb-2 flex items-center justify-center gap-2">
+              <CreditCard size={14} className="text-accent" /> Cartões
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <NumberInput 
@@ -265,8 +265,8 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
             </div>
           </div>
           <div className="p-4 bg-zinc-50 rounded-xl space-y-4 border border-zinc-100">
-            <h3 className="text-xs font-black uppercase tracking-tighter text-zinc-900 text-center border-b pb-2 flex items-center justify-center gap-2">
-              <Package size={14} /> Combos
+            <h3 className="text-xs font-black uppercase tracking-tighter text-primary text-center border-b pb-2 flex items-center justify-center gap-2">
+              <Package size={14} className="text-accent" /> Combos
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <NumberInput 
@@ -287,19 +287,19 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
       {/* Sellers */}
       <section className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-xl font-bold text-zinc-900">Time de Vendas</h2>
+          <h2 className="text-xl font-bold text-primary">Time de Vendas</h2>
           <button 
             onClick={addSeller}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-zinc-900 text-white rounded-xl text-xs font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-900/10"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10"
           >
-            <UserPlus size={14} /> ADICIONAR VENDEDOR
+            <UserPlus size={14} className="text-accent" /> ADICIONAR VENDEDOR
           </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {data.sellers.map((s) => (
-            <div key={s.id} className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden flex flex-col">
-              <div className="p-4 bg-zinc-900 flex justify-between items-center">
+            <div key={s.id} className="bg-white rounded-2xl border border-primary/10 shadow-sm overflow-hidden flex flex-col">
+              <div className="p-4 bg-primary flex justify-between items-center">
                 <input 
                   className="bg-transparent text-white font-bold text-sm outline-none border-b border-white/20 focus:border-white w-full mr-4"
                   value={s.name}
@@ -308,7 +308,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
                 />
                 <button 
                   onClick={() => removeSeller(s.id)}
-                  className="text-white/40 hover:text-red-400 transition-colors"
+                  className="text-white/40 hover:text-accent transition-colors"
                 >
                   <Trash2 size={16} />
                 </button>

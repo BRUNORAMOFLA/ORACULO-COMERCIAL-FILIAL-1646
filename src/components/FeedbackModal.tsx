@@ -130,7 +130,7 @@ export const FeedbackModal: React.FC<Props> = ({ seller, period, onClose }) => {
       >
         <div className="p-6 border-b flex justify-between items-center bg-zinc-50">
           <div>
-            <h3 className="text-lg font-black text-zinc-900">{seller.name}</h3>
+            <h3 className="text-lg font-black text-primary">{seller.name}</h3>
             <span className="text-[10px] font-bold uppercase text-zinc-400">{period.label}</span>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-zinc-200 rounded-full transition-colors">
@@ -147,7 +147,7 @@ export const FeedbackModal: React.FC<Props> = ({ seller, period, onClose }) => {
             ].map(p => (
               <div key={p.label} className="bg-zinc-50 p-3 rounded-xl border border-zinc-100 text-center">
                 <span className="text-[8px] font-black uppercase text-zinc-400 block">{p.label}</span>
-                <span className="text-sm font-black text-zinc-900">{p.val.toFixed(1)}%</span>
+                <span className="text-sm font-black text-primary">{p.val.toFixed(1)}%</span>
               </div>
             ))}
           </div>
@@ -157,7 +157,7 @@ export const FeedbackModal: React.FC<Props> = ({ seller, period, onClose }) => {
             <select 
               value={feedbackType}
               onChange={(e) => setFeedbackType(e.target.value as FeedbackType)}
-              className="w-full bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3 text-xs font-bold text-zinc-900 outline-none focus:ring-2 focus:ring-zinc-900 transition-all cursor-pointer"
+              className="w-full bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3 text-xs font-bold text-primary outline-none focus:ring-2 focus:ring-primary transition-all cursor-pointer"
             >
               <option value="" disabled>Selecione o tipo...</option>
               <option value="Automatico">Automático (Baseado em Dados)</option>
@@ -181,7 +181,7 @@ export const FeedbackModal: React.FC<Props> = ({ seller, period, onClose }) => {
                 <textarea 
                   value={feedbackText}
                   onChange={(e) => setFeedbackText(e.target.value)}
-                  className="w-full h-48 bg-zinc-50 border border-zinc-100 rounded-xl p-4 text-xs font-medium text-zinc-700 leading-relaxed outline-none focus:ring-2 focus:ring-zinc-900 transition-all resize-none"
+                  className="w-full h-48 bg-zinc-50 border border-zinc-100 rounded-xl p-4 text-xs font-medium text-zinc-700 leading-relaxed outline-none focus:ring-2 focus:ring-primary transition-all resize-none"
                 />
               </motion.div>
             )}
@@ -190,9 +190,9 @@ export const FeedbackModal: React.FC<Props> = ({ seller, period, onClose }) => {
           <button
             onClick={copyToClipboard}
             disabled={!feedbackText}
-            className="w-full bg-zinc-900 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg"
+            className="w-full bg-primary text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-primary/10"
           >
-            <MessageCircle size={16} />
+            <MessageCircle size={16} className="text-accent" />
             COPIAR PARA WHATSAPP
           </button>
         </div>

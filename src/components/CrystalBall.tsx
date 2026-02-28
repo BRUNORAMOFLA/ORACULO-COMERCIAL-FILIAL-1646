@@ -15,9 +15,9 @@ export const CrystalBall: React.FC = () => {
           repeat: Infinity,
           ease: "easeInOut"
         }}
-        className="absolute inset-0 bg-zinc-900 rounded-full blur-md opacity-20"
+        className="absolute inset-0 bg-primary rounded-full blur-md opacity-20"
       />
-      <div className="relative w-6 h-6 bg-zinc-900 rounded-full border border-white/20 shadow-inner flex items-center justify-center">
+      <div className="relative w-6 h-6 bg-primary rounded-full border border-white/20 shadow-inner flex items-center justify-center">
         <div className="w-1 h-1 bg-white rounded-full absolute top-1 left-1 opacity-40" />
       </div>
     </div>

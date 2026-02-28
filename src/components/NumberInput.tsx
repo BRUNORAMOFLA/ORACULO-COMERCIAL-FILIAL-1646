@@ -87,7 +87,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         value={displayValue}
         onChange={handleChange}
         placeholder={placeholder}
-        className={`w-full p-2 text-sm border rounded-lg bg-zinc-50 focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all ${className}`}
+        className={`w-full p-2 text-sm border rounded-lg bg-zinc-50 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all ${className}`}
       />
     </div>
   );

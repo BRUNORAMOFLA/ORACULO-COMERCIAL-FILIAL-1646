@@ -2,13 +2,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { DataInput } from './components/DataInput';
 import { Dashboard } from './components/Dashboard';
+import { EvolutionTab } from './components/evolution/EvolutionTab';
 import { AISummary } from './components/AISummary';
 import { DataImporter } from './components/DataImporter';
 import { OracleData, OracleHistory, HistoryRecord, Period } from './types/oracle';
 import { processOracle } from './logic/oracleProcessor';
 import { motion, AnimatePresence } from 'motion/react';
 import { CrystalBall } from './components/CrystalBall';
-import { LayoutDashboard, FileInput, Info, Save, Clock, RotateCcw, History, CheckCircle2, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, FileInput, Info, Save, Clock, RotateCcw, History, CheckCircle2, AlertCircle, TrendingUp } from 'lucide-react';
 import { formatDateTimeBR } from './utils/formatters';
 import { SwitchPeriodModal } from './components/SwitchPeriodModal';
 
@@ -122,7 +123,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_STATE;
   });
   
-  const [activeTab, setActiveTab] = useState<'input' | 'dashboard'>('input');
+  const [activeTab, setActiveTab] = useState<'input' | 'dashboard' | 'evolution'>('input');
   const [isDirty, setIsDirty] = useState(false);
   const [pendingPeriodChange, setPendingPeriodChange] = useState<Period | null>(null);
   const [autoSave, setAutoSave] = useState(false);
@@ -140,7 +141,7 @@ export default function App() {
     return { registros: [] };
   });
 
-  const processedData = useMemo(() => processOracle(data), [data]);
+  const processedData = useMemo(() => processOracle(data, history.registros), [data, history]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -279,19 +280,19 @@ export default function App() {
   }, [isDirty]);
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] text-zinc-900 font-sans selection:bg-zinc-900 selection:text-white">
+    <div className="min-h-screen bg-white text-primary font-sans selection:bg-primary selection:text-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-black/5">
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-zinc-900 rounded-xl flex-shrink-0 flex items-center justify-center shadow-lg shadow-zinc-900/20">
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-primary rounded-xl flex-shrink-0 flex items-center justify-center shadow-lg shadow-primary/20">
               <span className="text-white font-serif italic text-lg md:text-xl">O</span>
             </div>
             <div className="truncate">
-              <h1 className="text-sm md:text-lg font-bold tracking-tight leading-none truncate">ORÁCULO COMERCIAL</h1>
+              <h1 className="text-sm md:text-lg font-bold tracking-tight leading-none truncate text-primary">ORÁCULO COMERCIAL</h1>
               <div className="flex items-center gap-2 mt-1">
                 <p className="hidden xs:block text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-zinc-400 truncate">Gestão Estratégica</p>
-                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${isDirty ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+                <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${isDirty ? 'bg-accent/10 text-accent border border-accent/20' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
                   {isDirty ? <><AlertCircle size={8} /> Alterações não salvas</> : <><CheckCircle2 size={8} /> Dados Salvos</>}
                 </div>
               </div>
@@ -313,7 +314,7 @@ export default function App() {
               <div className="mr-2 flex items-center">
                 <select 
                   onChange={(e) => loadFromHistory(e.target.value)}
-                  className="bg-white border-none text-[10px] md:text-xs font-bold px-2 py-1.5 rounded-lg outline-none cursor-pointer text-zinc-600 hover:text-zinc-900 transition-colors"
+                  className="bg-white border-none text-[10px] md:text-xs font-bold px-2 py-1.5 rounded-lg outline-none cursor-pointer text-primary hover:text-primary/80 transition-colors"
                   defaultValue=""
                 >
                   <option value="" disabled>CARREGAR HISTÓRICO</option>
@@ -325,15 +326,21 @@ export default function App() {
             )}
             <button 
               onClick={() => setActiveTab('input')}
-              className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all ${activeTab === 'input' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
+              className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all ${activeTab === 'input' ? 'bg-white shadow-sm text-primary' : 'text-zinc-500 hover:text-primary'}`}
             >
               <FileInput size={14} className="hidden xs:block" /> ENTRADA
             </button>
             <button 
               onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all ${activeTab === 'dashboard' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
+              className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all ${activeTab === 'dashboard' ? 'bg-white shadow-sm text-primary' : 'text-zinc-500 hover:text-primary'}`}
             >
               <LayoutDashboard size={14} className="hidden xs:block" /> DASHBOARD
+            </button>
+            <button 
+              onClick={() => setActiveTab('evolution')}
+              className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all ${activeTab === 'evolution' ? 'bg-white shadow-sm text-primary' : 'text-zinc-500 hover:text-primary'}`}
+            >
+              <TrendingUp size={14} className="hidden xs:block" /> EVOLUÇÃO
             </button>
           </nav>
         </div>
@@ -358,9 +365,9 @@ export default function App() {
                   <div className="mt-8">
                     <button 
                       onClick={() => handleSave()}
-                      className="w-full py-4 bg-zinc-900 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 shadow-xl shadow-zinc-900/20"
+                      className="w-full py-4 bg-primary text-white rounded-xl font-bold uppercase tracking-widest hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-xl shadow-primary/20"
                     >
-                      <Save size={20} /> PROCESSAR E SALVAR
+                      <Save size={20} className="text-accent" /> PROCESSAR E SALVAR
                     </button>
                   </div>
                 </div>
@@ -376,7 +383,7 @@ export default function App() {
                 </div>
               </div>
             </motion.div>
-          ) : (
+          ) : activeTab === 'dashboard' ? (
             <motion.div
               key="dashboard"
               initial={{ opacity: 0, y: 10 }}
@@ -386,14 +393,14 @@ export default function App() {
             >
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
-                  <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-900">{processedData.store.name}</h2>
+                  <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-primary">{processedData.store.name}</h2>
                   <p className="text-xs md:text-sm font-medium text-zinc-500">Relatório de Performance Estratégica • {processedData.store.period.label}</p>
                 </div>
                 <div className="text-left sm:text-right">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-1">Status da Operação</span>
                   <div className={`inline-block px-4 py-1 rounded-full text-xs font-bold uppercase ${
                     processedData.store.healthIndex >= 80 ? 'bg-emerald-100 text-emerald-700' : 
-                    processedData.store.healthIndex >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                    processedData.store.healthIndex >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-accent/10 text-accent'
                   }`}>
                     {processedData.store.classification}
                   </div>
@@ -404,15 +411,24 @@ export default function App() {
               
               <AISummary data={processedData} />
             </motion.div>
+          ) : (
+            <motion.div
+              key="evolution"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <EvolutionTab history={history} currentData={processedData} />
+            </motion.div>
           )}
         </AnimatePresence>
       </main>
 
-      <footer className="relative z-10 max-w-7xl mx-auto px-4 py-8 md:py-12 border-t border-black/5 flex flex-col gap-8 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+      <footer className="relative z-10 max-w-7xl mx-auto px-4 py-8 md:py-12 border-t border-primary/10 flex flex-col gap-8 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-6 w-full">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
-            <span>© 2026 ORÁCULO COMERCIAL</span>
-            <span className="flex items-center gap-1"><Clock size={10} /> GERADO EM: {formatDateTimeBR(processedData.generatedAt)}</span>
+            <span className="text-primary">© 2026 ORÁCULO COMERCIAL</span>
+            <span className="flex items-center gap-1"><Clock size={10} className="text-accent" /> GERADO EM: {formatDateTimeBR(processedData.generatedAt)}</span>
           </div>
           <div className="flex flex-wrap gap-4 sm:gap-6 items-center justify-center sm:justify-end">
             <button 
@@ -422,7 +438,7 @@ export default function App() {
                 e.preventDefault();
                 resetData();
               }}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-all cursor-pointer border border-red-100 active:scale-95 min-h-[44px] shadow-sm relative z-20"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-accent/5 text-accent hover:bg-accent/10 transition-all cursor-pointer border border-accent/10 active:scale-95 min-h-[44px] shadow-sm relative z-20"
             >
               <RotateCcw size={14} className="pointer-events-none" /> LIMPAR DADOS
             </button>
