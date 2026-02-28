@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { DataInput } from './components/DataInput';
 import { Dashboard } from './components/Dashboard';
 import { AISummary } from './components/AISummary';
@@ -7,8 +7,10 @@ import { OracleData } from './types/oracle';
 import { processOracle } from './logic/oracleProcessor';
 import { motion, AnimatePresence } from 'motion/react';
 import { CrystalBall } from './components/CrystalBall';
-import { LayoutDashboard, FileInput, Info, Save, Clock } from 'lucide-react';
+import { LayoutDashboard, FileInput, Info, Save, Clock, RotateCcw } from 'lucide-react';
 import { formatDateTimeBR } from './utils/formatters';
+
+const STORAGE_KEY = 'oraculo-comercial-storage';
 
 const INITIAL_STATE: OracleData = {
   store: {
@@ -53,15 +55,29 @@ const INITIAL_STATE: OracleData = {
 };
 
 export default function App() {
-  const [data, setData] = useState<OracleData>(INITIAL_STATE);
+  const [data, setData] = useState<OracleData>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : INITIAL_STATE;
+  });
+  
   const [activeTab, setActiveTab] = useState<'input' | 'dashboard'>('input');
 
   const processedData = useMemo(() => processOracle(data), [data]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }, [data]);
+
   const handleSave = () => {
-    // In a real app, this would save to a database
     console.log('Saving Oracle Data:', processedData);
     setActiveTab('dashboard');
+  };
+
+  const resetData = () => {
+    if (window.confirm("Tem certeza que deseja apagar todos os dados? Essa ação não pode ser desfeita.")) {
+      localStorage.removeItem("oraculo-comercial-storage");
+      window.location.reload();
+    }
   };
 
   return (
@@ -178,14 +194,27 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      <footer className="max-w-7xl mx-auto px-4 py-8 md:py-12 border-t border-black/5 flex flex-col sm:flex-row justify-between items-center gap-6 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+      <footer className="relative z-10 max-w-7xl mx-auto px-4 py-8 md:py-12 border-t border-black/5 flex flex-col sm:flex-row justify-between items-center gap-6 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
         <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
           <span>© 2026 ORÁCULO COMERCIAL</span>
           <span className="flex items-center gap-1"><Clock size={10} /> GERADO EM: {formatDateTimeBR(processedData.generatedAt)}</span>
         </div>
-        <div className="flex gap-6">
-          <span>Integridade de Dados: 100%</span>
-          <span>Versão: 2.1.0</span>
+        <div className="flex flex-wrap gap-4 sm:gap-6 items-center justify-center sm:justify-end">
+          <button 
+            type="button"
+            id="reset-button"
+            onClick={(e) => {
+              e.preventDefault();
+              resetData();
+            }}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-all cursor-pointer border border-red-100 active:scale-95 min-h-[44px] shadow-sm relative z-20"
+          >
+            <RotateCcw size={14} className="pointer-events-none" /> LIMPAR DADOS
+          </button>
+          <div className="flex gap-4">
+            <span>Integridade de Dados: 100%</span>
+            <span>Versão: 2.1.0</span>
+          </div>
         </div>
       </footer>
     </div>

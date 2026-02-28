@@ -214,11 +214,13 @@ export const DataInput: React.FC<Props> = ({ data, onChange }) => {
                     label="Meta Part. (%)"
                     value={data.store.pillars.cdc.participation.meta}
                     onChange={val => updateStorePillar('cdc', 'participation.meta', val)}
+                    percent={true}
                   />
                   <NumberInput 
                     label="Real Part. (%)"
                     value={data.store.pillars.cdc.participation.realized}
                     onChange={val => updateStorePillar('cdc', 'participation.realized', val)}
+                    percent={true}
                   />
                 </div>
               )}
@@ -229,11 +231,13 @@ export const DataInput: React.FC<Props> = ({ data, onChange }) => {
                     label="Meta Efic. (%)"
                     value={data.store.pillars.services.efficiency.meta}
                     onChange={val => updateStorePillar('services', 'efficiency.meta', val)}
+                    percent={true}
                   />
                   <NumberInput 
                     label="Real Efic. (%)"
                     value={data.store.pillars.services.efficiency.realized}
                     onChange={val => updateStorePillar('services', 'efficiency.realized', val)}
+                    percent={true}
                   />
                 </div>
               )}
