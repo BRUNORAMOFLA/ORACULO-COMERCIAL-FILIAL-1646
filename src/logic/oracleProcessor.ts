@@ -138,7 +138,7 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
     };
   });
 
-  // 6. Concentration & Radar
+  // Concentration & Radar
   let concentrationRisk = "Saudável";
   if (sellers.length > 0) {
     const sortedSellers = [...sellers].sort((a, b) => b.score - a.score);
@@ -169,13 +169,29 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
 
   const sortedSellersByScore = [...sellers].sort((a, b) => b.score - a.score);
   
+  // Calculate General Trend with points
+  let generalTrendText = "Estabilidade operacional.";
+  if (history.length > 0) {
+    const prevScore = history[0].dados.store.healthIndex;
+    const currentScore = store.healthIndex;
+    const diff = currentScore - prevScore;
+    
+    if (Math.abs(diff) < 2) {
+      generalTrendText = "Estabilidade operacional.";
+    } else if (diff > 0) {
+      generalTrendText = `Tendência de alta (+${diff.toFixed(1)} pts).`;
+    } else {
+      generalTrendText = `Tendência de retração (${diff.toFixed(1)} pts).`;
+    }
+  }
+
   result.intelligence = {
     radar: {
       strongestPillar: pillars[0].name,
       vulnerablePillar: pillars[2].name,
       risingSeller: sortedSellersByScore[0]?.name || "N/A",
       riskySeller: sellers.find(s => s.intelligence?.riskAlert)?.name || "Nenhum",
-      generalTrend: analyzeTrend(storeMercantilHistory.slice(-3)),
+      generalTrend: generalTrendText,
       dispersionLevel: sellers.length > 0 ? (sellers.filter(s => s.score < 80).length / sellers.length > 0.3 ? "Alta" : "Baixa") : "N/A"
     },
     storeTrend,
