@@ -217,11 +217,32 @@ export const IntelligenceRadar: React.FC<Props> = ({ data }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="p-6 bg-primary rounded-3xl text-white space-y-4">
-          <div className="flex items-center gap-2 text-accent">
-            <Activity size={20} />
-            <h4 className="text-xs font-black uppercase tracking-widest">Leitura de Saúde</h4>
+        <div className="p-6 bg-primary rounded-3xl text-white space-y-4 relative">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-accent">
+              <Activity size={20} />
+              <h4 className="text-xs font-black uppercase tracking-widest">Leitura de Saúde</h4>
+            </div>
+            <button 
+              onClick={() => setActiveTooltip(activeTooltip === 'health_reading' ? null : 'health_reading')}
+              className="text-white/30 hover:text-accent transition-colors"
+            >
+              <Info size={16} />
+            </button>
           </div>
+          <AnimatePresence>
+            {activeTooltip === 'health_reading' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed"
+                ref={tooltipRef}
+              >
+                Esta leitura interpreta o Score de Saúde (0-100) classificando a operação entre Crítica, Atenção, Competitiva ou de Alta Performance.
+              </motion.div>
+            )}
+          </AnimatePresence>
           <p className="text-lg font-medium leading-relaxed">
             {healthReading}
           </p>
@@ -232,11 +253,32 @@ export const IntelligenceRadar: React.FC<Props> = ({ data }) => {
           </div>
         </div>
 
-        <div className="p-6 bg-white rounded-3xl border border-primary/10 shadow-sm space-y-6">
-          <div className="flex items-center gap-2 text-primary">
-            <BarChart3 size={20} />
-            <h4 className="text-xs font-black uppercase tracking-widest">Tendência por Pilar</h4>
+        <div className="p-6 bg-white rounded-3xl border border-primary/10 shadow-sm space-y-6 relative">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-primary">
+              <BarChart3 size={20} />
+              <h4 className="text-xs font-black uppercase tracking-widest">Tendência por Pilar</h4>
+            </div>
+            <button 
+              onClick={() => setActiveTooltip(activeTooltip === 'pillar_trend' ? null : 'pillar_trend')}
+              className="text-zinc-300 hover:text-primary transition-colors"
+            >
+              <Info size={16} />
+            </button>
           </div>
+          <AnimatePresence>
+            {activeTooltip === 'pillar_trend' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed"
+                ref={tooltipRef}
+              >
+                A tendência avalia o comportamento do ICM em cada pilar, sinalizando se a operação está ganhando ou perdendo tração em relação ao objetivo.
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div className="space-y-4">
             {Object.entries(storeTrend).map(([pilar, trend], idx) => (
               <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">

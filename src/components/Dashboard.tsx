@@ -61,6 +61,7 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [selectedPillar, setSelectedPillar] = useState<'mercantil' | 'cdc' | 'services' | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   const periodKey = data.store.period.label.replace(/\s+/g, '_');
@@ -213,6 +214,88 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
 
       <IntelligenceRadar data={data} />
       
+      {/* Indicator Deep Dive */}
+      <div className="bg-white p-6 rounded-3xl border border-primary/10 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-2">
+            <BarChart3 size={18} className="text-primary" />
+            <h3 className="text-xs font-black uppercase tracking-widest text-zinc-900">Análise por Indicador</h3>
+          </div>
+          <div className="flex bg-zinc-100 p-1 rounded-lg w-full sm:w-auto">
+            {[
+              { id: 'mercantil', label: 'Mercantil' },
+              { id: 'cdc', label: 'CDC' },
+              { id: 'services', label: 'Serviços' }
+            ].map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedPillar(selectedPillar === p.id ? null : p.id as any)}
+                className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-[10px] font-bold transition-all ${selectedPillar === p.id ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+              >
+                {p.label.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {selectedPillar ? (
+            <motion.div
+              key={selectedPillar}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-zinc-50"
+            >
+              <div className="space-y-4">
+                <span className="text-[10px] font-black uppercase text-zinc-400">Performance {selectedPillar}</span>
+                <div className="p-4 bg-zinc-50 rounded-2xl space-y-3">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-2xl font-black text-primary">{data.store.pillars[selectedPillar].icm.toFixed(1)}%</span>
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase">ICM Entrega</span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-bold">
+                      <span className="text-zinc-400">REALIZADO</span>
+                      <span className="text-zinc-900">{formatCurrencyBR(data.store.pillars[selectedPillar].realized)}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px] font-bold">
+                      <span className="text-zinc-400">META</span>
+                      <span className="text-zinc-900">{formatCurrencyBR(data.store.pillars[selectedPillar].meta)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:col-span-2 space-y-4">
+                <span className="text-[10px] font-black uppercase text-zinc-400">Top 5 Vendedores em {selectedPillar}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {data.sellers
+                    .sort((a, b) => b.pillars[selectedPillar].realized - a.pillars[selectedPillar].realized)
+                    .slice(0, 5)
+                    .map((s, idx) => (
+                      <div key={s.id} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100 group hover:border-primary/20 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-bold text-zinc-400">#{idx + 1}</span>
+                          <span className="text-xs font-bold text-zinc-900">{s.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-black text-primary block">{formatCurrencyBR(s.pillars[selectedPillar].realized)}</span>
+                          <span className="text-[8px] font-bold text-zinc-400 uppercase">{s.pillars[selectedPillar].icm.toFixed(0)}% ICM</span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <div className="py-8 text-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200">
+              <p className="text-xs font-bold text-zinc-400 uppercase">Selecione um indicador acima para ver detalhes</p>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* Top Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm relative">
@@ -577,8 +660,29 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
       {/* Main Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Health Gauge */}
-        <div className="bg-white p-6 rounded-2xl border border-primary/10 shadow-sm flex flex-col items-center">
-          <h3 className="text-xs font-bold uppercase text-zinc-400 mb-6 self-start">Performance Composta</h3>
+        <div className="bg-white p-6 rounded-2xl border border-primary/10 shadow-sm flex flex-col items-center relative">
+          <div className="flex items-center justify-between w-full mb-6">
+            <h3 className="text-xs font-bold uppercase text-zinc-400">Performance Composta</h3>
+            <button 
+              onClick={() => setActiveTooltip(activeTooltip === 'composite_performance' ? null : 'composite_performance')}
+              className="text-zinc-300 hover:text-primary transition-colors"
+            >
+              <Info size={14} />
+            </button>
+          </div>
+          <AnimatePresence>
+            {activeTooltip === 'composite_performance' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed"
+                ref={tooltipRef}
+              >
+                Representação visual da saúde geral da loja. O Score é a média ponderada: Mercantil (40%), CDC (30%) e Serviços (30%).
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div className="h-64 w-full relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>

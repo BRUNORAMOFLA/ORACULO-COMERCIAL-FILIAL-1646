@@ -63,6 +63,7 @@ export const HistoryMode: React.FC<Props> = ({ history, currentData, periodMode 
   const [analysis, setAnalysis] = useState<HistoryAnalysis | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<'interno' | 'executivo'>('interno');
+  const [indicator, setIndicator] = useState<'score' | 'mercantil' | 'cdc' | 'services'>('score');
 
   const historyPoints: HistoryPoint[] = useMemo(() => {
     // 1. Sort history by date to ensure chronological order in charts
@@ -148,7 +149,15 @@ export const HistoryMode: React.FC<Props> = ({ history, currentData, periodMode 
     return points;
   }, [history, currentData, periodMode]);
 
-  const trend = useMemo(() => calcTrend(historyPoints.map(p => p.score)), [historyPoints]);
+  const trend = useMemo(() => {
+    const values = historyPoints.map(p => {
+      if (indicator === 'score') return p.score;
+      if (indicator === 'mercantil') return p.mercantilICM || 0;
+      if (indicator === 'cdc') return p.cdcICM || 0;
+      return p.servicesICM || 0;
+    });
+    return calcTrend(values);
+  }, [historyPoints, indicator]);
 
   const handleGenerateAnalysis = async () => {
     setIsGenerating(true);
@@ -183,6 +192,24 @@ Gere as análises Interna e Executiva conforme as regras de blocos obrigatórios
 
   return (
     <div className="space-y-8">
+      {/* Indicator Selector */}
+      <div className="flex bg-zinc-100 p-1 rounded-xl w-fit">
+        {[
+          { id: 'score', label: 'Score Global' },
+          { id: 'mercantil', label: 'Mercantil' },
+          { id: 'cdc', label: 'CDC' },
+          { id: 'services', label: 'Serviços' }
+        ].map((i) => (
+          <button
+            key={i.id}
+            onClick={() => setIndicator(i.id as any)}
+            className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${indicator === i.id ? 'bg-white shadow-sm text-primary' : 'text-zinc-500'}`}
+          >
+            {i.label}
+          </button>
+        ))}
+      </div>
+
       {/* Trend Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="p-6 bg-white rounded-3xl border border-primary/10 shadow-sm flex items-center gap-4">
@@ -194,7 +221,7 @@ Gere as análises Interna e Executiva conforme as regras de blocos obrigatórios
              trend === 'Tendência de Queda' ? <TrendingDown size={24} /> : <Activity size={24} />}
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Tendência Global</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Tendência {indicator === 'score' ? 'Global' : indicator.toUpperCase()}</span>
             <span className="text-lg font-black text-primary">{trend}</span>
           </div>
         </div>
@@ -204,9 +231,14 @@ Gere as análises Interna e Executiva conforme as regras de blocos obrigatórios
             <Users size={24} />
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Média de Score</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Média de {indicator === 'score' ? 'Score' : 'ICM'}</span>
             <span className="text-lg font-black text-primary">
-              {(historyPoints.reduce((acc, p) => acc + p.score, 0) / historyPoints.length).toFixed(1)} pts
+              {(historyPoints.reduce((acc, p) => {
+                if (indicator === 'score') return acc + p.score;
+                if (indicator === 'mercantil') return acc + (p.mercantilICM || 0);
+                if (indicator === 'cdc') return acc + (p.cdcICM || 0);
+                return acc + (p.servicesICM || 0);
+              }, 0) / historyPoints.length).toFixed(1)} {indicator === 'score' ? 'pts' : '%'}
             </span>
           </div>
         </div>
@@ -224,9 +256,11 @@ Gere as análises Interna e Executiva conforme as regras de blocos obrigatórios
         </div>
       </div>
 
-      {/* Score Evolution Chart */}
+      {/* Score/ICM Evolution Chart */}
       <div className="p-8 bg-white rounded-[2rem] border border-black/5 shadow-sm space-y-6">
-        <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Evolução do Score da Unidade</h3>
+        <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">
+          Evolução {indicator === 'score' ? 'do Score da Unidade' : `do ICM ${indicator.toUpperCase()}`}
+        </h3>
         <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={historyPoints}>
@@ -238,8 +272,8 @@ Gere as análises Interna e Executiva conforme as regras de blocos obrigatórios
               />
               <Line 
                 type="monotone" 
-                dataKey="score" 
-                name="Score Final" 
+                dataKey={indicator === 'score' ? 'score' : `${indicator}ICM`} 
+                name={indicator === 'score' ? 'Score Final' : `ICM ${indicator.toUpperCase()}`} 
                 stroke="#0047BA" 
                 strokeWidth={4} 
                 dot={{ r: 6, fill: '#0047BA', strokeWidth: 2, stroke: '#fff' }} 
@@ -252,7 +286,9 @@ Gere as análises Interna e Executiva conforme as regras de blocos obrigatórios
 
       {/* Pillars Comparison Chart */}
       <div className="p-8 bg-white rounded-[2rem] border border-black/5 shadow-sm space-y-6">
-        <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Performance dos Pilares (Real vs Meta)</h3>
+        <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">
+          {indicator === 'score' ? 'Performance dos Pilares (ICM %)' : `Performance ${indicator.toUpperCase()} (Real vs Meta)`}
+        </h3>
         <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={historyPoints}>
@@ -261,10 +297,21 @@ Gere as análises Interna e Executiva conforme as regras de blocos obrigatórios
               <YAxis axisLine={false} tickLine={false} fontSize={10} />
               <Tooltip 
                 contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
+                formatter={(value: any) => indicator === 'score' ? `${Number(value).toFixed(1)}%` : formatBRL(Number(value))}
               />
               <Legend verticalAlign="top" height={36} iconType="circle" />
-              <Bar dataKey="mercantilReal" name="Mercantil Real" fill="#0047BA" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="mercantilMeta" name="Mercantil Meta" fill="#E31C1C" radius={[4, 4, 0, 0]} opacity={0.2} />
+              {indicator === 'score' ? (
+                <>
+                  <Bar dataKey="mercantilICM" name="Mercantil (%)" fill="#0047BA" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="cdcICM" name="CDC (%)" fill="#E31C1C" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="servicesICM" name="Serviços (%)" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+                </>
+              ) : (
+                <>
+                  <Bar dataKey={`${indicator}Real`} name={`${indicator.toUpperCase()} Real`} fill="#0047BA" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey={`${indicator}Meta`} name={`${indicator.toUpperCase()} Meta`} fill="#E31C1C" radius={[4, 4, 0, 0]} opacity={0.2} />
+                </>
+              )}
             </BarChart>
           </ResponsiveContainer>
         </div>

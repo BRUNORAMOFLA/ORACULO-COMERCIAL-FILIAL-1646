@@ -21,6 +21,15 @@ export interface SellerComparison {
   currentRank: number;
   deltaRank: number;
   alerts: string[];
+  pillars: {
+    [key: string]: {
+      base: number;
+      current: number;
+      delta: number;
+      baseICM: number;
+      currentICM: number;
+    };
+  };
 }
 
 export interface EvolutionAlert {

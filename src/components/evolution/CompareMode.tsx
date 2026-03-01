@@ -39,6 +39,7 @@ export const CompareMode: React.FC<Props> = ({ history, currentData, periodMode 
   const [comparison, setComparison] = useState<ComparisonResult | null>(null);
   const [diagnosis, setDiagnosis] = useState<string | null>(null);
   const [isGeneratingDiagnosis, setIsGeneratingDiagnosis] = useState(false);
+  const [focus, setFocus] = useState<'score' | 'mercantil' | 'cdc' | 'services'>('score');
 
   const records = useMemo(() => {
     const sorted = [...history.registros];
@@ -100,6 +101,23 @@ export const CompareMode: React.FC<Props> = ({ history, currentData, periodMode 
         if (cRank - bRank >= 2) alerts.push('Queda de ranking >= 2 posições');
       }
 
+      const sellerPillars: { [key: string]: any } = {};
+      pillars.forEach(p => {
+        const pk = p as 'mercantil' | 'cdc' | 'services';
+        const bVal = sA ? sA.pillars[pk].realized : 0;
+        const cVal = sB.pillars[pk].realized;
+        const bMeta = sA ? sA.pillars[pk].meta : 0;
+        const cMeta = sB.pillars[pk].meta;
+        
+        sellerPillars[pk] = {
+          base: bVal,
+          current: cVal,
+          delta: cVal - bVal,
+          baseICM: calcICM(bVal, bMeta),
+          currentICM: calcICM(cVal, cMeta)
+        };
+      });
+
       return {
         id: sB.id,
         name: sB.name,
@@ -109,7 +127,8 @@ export const CompareMode: React.FC<Props> = ({ history, currentData, periodMode 
         baseRank: bRank || 0,
         currentRank: cRank,
         deltaRank: bRank ? bRank - cRank : 0,
-        alerts
+        alerts,
+        pillars: sellerPillars
       };
     });
 
@@ -316,12 +335,32 @@ Gere o diagnóstico estratégico conforme as regras de 6 blocos obrigatórios.
 
           {/* Seller Table */}
           <div className="p-6 bg-white rounded-3xl border border-black/5 shadow-sm overflow-x-auto">
-            <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-6">Movimentação Individual</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Movimentação Individual</h3>
+              <div className="flex bg-zinc-100 p-1 rounded-lg w-full sm:w-auto">
+                {[
+                  { id: 'score', label: 'Geral (Score)' },
+                  { id: 'mercantil', label: 'Mercantil' },
+                  { id: 'cdc', label: 'CDC' },
+                  { id: 'services', label: 'Serviços' }
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setFocus(f.id as any)}
+                    className={`flex-1 sm:flex-none px-3 py-1 rounded-md text-[10px] font-bold transition-all ${focus === f.id ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+                  >
+                    {f.label.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
             <table className="w-full text-left">
               <thead>
                 <tr className="text-[10px] font-black uppercase text-zinc-400 border-b">
                   <th className="pb-3 px-2">Vendedor</th>
-                  <th className="pb-3 px-2">Score A/B</th>
+                  <th className="pb-3 px-2">
+                    {focus === 'score' ? 'Score A/B' : `${focus.toUpperCase()} A/B`}
+                  </th>
                   <th className="pb-3 px-2">Variação</th>
                   <th className="pb-3 px-2">Ranking A/B</th>
                   <th className="pb-3 px-2">Alertas</th>
@@ -333,13 +372,33 @@ Gere o diagnóstico estratégico conforme as regras de 6 blocos obrigatórios.
                     <td className="py-4 px-2">{s.name}</td>
                     <td className="py-4 px-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-zinc-400">{s.baseScore.toFixed(1)}</span>
-                        <ArrowRight size={12} className="text-zinc-300" />
-                        <span>{s.currentScore.toFixed(1)}</span>
+                        {focus === 'score' ? (
+                          <>
+                            <span className="text-zinc-400">{s.baseScore.toFixed(1)}</span>
+                            <ArrowRight size={12} className="text-zinc-300" />
+                            <span>{s.currentScore.toFixed(1)}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-zinc-400">{focus === 'mercantil' || focus === 'cdc' || focus === 'services' ? formatBRL(s.pillars[focus].base) : s.pillars[focus].base}</span>
+                            <ArrowRight size={12} className="text-zinc-300" />
+                            <span>{focus === 'mercantil' || focus === 'cdc' || focus === 'services' ? formatBRL(s.pillars[focus].current) : s.pillars[focus].current}</span>
+                          </>
+                        )}
                       </div>
                     </td>
-                    <td className={`py-4 px-2 ${s.deltaScore >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {s.deltaScore >= 0 ? '+' : ''}{s.deltaScore.toFixed(1)}
+                    <td className={`py-4 px-2 ${
+                      (focus === 'score' ? s.deltaScore : s.pillars[focus].delta) >= 0 ? 'text-emerald-600' : 'text-red-600'
+                    }`}>
+                      {focus === 'score' ? (
+                        <>
+                          {s.deltaScore >= 0 ? '+' : ''}{s.deltaScore.toFixed(1)}
+                        </>
+                      ) : (
+                        <>
+                          {s.pillars[focus].delta >= 0 ? '+' : ''}{formatBRL(s.pillars[focus].delta)}
+                        </>
+                      )}
                     </td>
                     <td className="py-4 px-2">
                       <div className="flex items-center gap-2">
