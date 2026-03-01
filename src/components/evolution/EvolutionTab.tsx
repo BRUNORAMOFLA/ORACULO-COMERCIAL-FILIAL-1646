@@ -72,7 +72,7 @@ export const EvolutionTab: React.FC<Props> = ({ history, currentData, periodMode
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
           >
-            <CompareMode history={history} currentData={currentData} />
+            <CompareMode history={history} currentData={currentData} periodMode={periodMode} />
           </motion.div>
         ) : (
           <motion.div
@@ -81,7 +81,7 @@ export const EvolutionTab: React.FC<Props> = ({ history, currentData, periodMode
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
           >
-            <HistoryMode history={history} currentData={currentData} />
+            <HistoryMode history={history} currentData={currentData} periodMode={periodMode} />
           </motion.div>
         )}
       </AnimatePresence>

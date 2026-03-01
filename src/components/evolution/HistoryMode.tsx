@@ -9,6 +9,7 @@ import {
   formatPercentBR,
   calcICM
 } from '../../lib/intelligence/score';
+import { generatePeriodLabel } from '../../utils/formatters';
 import { 
   LineChart, 
   Line, 
@@ -29,6 +30,7 @@ import { METRIC_DEFINITIONS } from '../../constants/metrics';
 interface Props {
   history: OracleHistory;
   currentData: OracleResult;
+  periodMode: 'DIARIO' | 'SEMANAL' | 'MENSAL';
 }
 
 interface HistoryAnalysis {
@@ -57,13 +59,25 @@ interface HistoryAnalysis {
   };
 }
 
-export const HistoryMode: React.FC<Props> = ({ history, currentData }) => {
+export const HistoryMode: React.FC<Props> = ({ history, currentData, periodMode }) => {
   const [analysis, setAnalysis] = useState<HistoryAnalysis | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<'interno' | 'executivo'>('interno');
 
   const historyPoints: HistoryPoint[] = useMemo(() => {
-    const points: HistoryPoint[] = history.registros.map(r => {
+    // 1. Sort history by date to ensure chronological order in charts
+    const sortedRecords = [...history.registros].sort((a, b) => {
+      const pa = a.dados.store.period;
+      const pb = b.dados.store.period;
+      
+      // Create comparable date strings
+      const dateA = pa.startDate || pa.date || `${pa.year}-${String(pa.month).padStart(2, '0')}-01`;
+      const dateB = pb.startDate || pb.date || `${pb.year}-${String(pb.month).padStart(2, '0')}-01`;
+      
+      return dateA.localeCompare(dateB);
+    });
+
+    const points: HistoryPoint[] = sortedRecords.map(r => {
       const store = r.dados.store;
       const sellers = r.dados.sellers;
       const mercantilReal = store.pillars.mercantil.realized;
@@ -73,9 +87,11 @@ export const HistoryMode: React.FC<Props> = ({ history, currentData }) => {
       const top2 = (sortedSellers[0]?.pillars.mercantil.realized || 0) + (sortedSellers[1]?.pillars.mercantil.realized || 0);
       const dependency = (top2 / Math.max(mercantilReal, 1)) * 100;
 
+      const label = generatePeriodLabel(store.period);
+
       return {
         periodId: r.id,
-        label: r.id.split('-').slice(2).join('-'),
+        label,
         score: calcPeriodScoreStore(store, sellers),
         mercantilReal,
         mercantilMeta,
@@ -90,32 +106,47 @@ export const HistoryMode: React.FC<Props> = ({ history, currentData }) => {
       };
     });
     
-    // Add current data
+    // Add current data if not redundant
     const currentStore = currentData.store;
-    const currentSellers = currentData.sellers;
-    const currentMercantilReal = currentStore.pillars.mercantil.realized;
-    const currentSortedSellers = [...currentSellers].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
-    const currentTop2 = (currentSortedSellers[0]?.pillars.mercantil.realized || 0) + (currentSortedSellers[1]?.pillars.mercantil.realized || 0);
-    const currentDependency = (currentTop2 / Math.max(currentMercantilReal, 1)) * 100;
-
-    points.push({
-      periodId: 'current',
-      label: 'Atual',
-      score: calcPeriodScoreStore(currentStore, currentSellers),
-      mercantilReal: currentMercantilReal,
-      mercantilMeta: currentStore.pillars.mercantil.meta,
-      cdcReal: currentStore.pillars.cdc.realized,
-      cdcMeta: currentStore.pillars.cdc.meta,
-      servicesReal: currentStore.pillars.services.realized,
-      servicesMeta: currentStore.pillars.services.meta,
-      dependency: currentDependency,
-      mercantilICM: calcICM(currentMercantilReal, currentStore.pillars.mercantil.meta),
-      cdcICM: calcICM(currentStore.pillars.cdc.realized, currentStore.pillars.cdc.meta),
-      servicesICM: calcICM(currentStore.pillars.services.realized, currentStore.pillars.services.meta)
+    const currentPeriod = currentStore.period;
+    
+    const isRedundant = sortedRecords.some(r => {
+      const p = r.dados.store.period;
+      if (p.type !== currentPeriod.type) return false;
+      if (p.type === 'monthly') return p.month === currentPeriod.month && p.year === currentPeriod.year;
+      if (p.type === 'weekly') return p.startDate === currentPeriod.startDate && p.endDate === currentPeriod.endDate;
+      if (p.type === 'daily') return p.date === currentPeriod.date;
+      return false;
     });
 
+    if (!isRedundant) {
+      const currentSellers = currentData.sellers;
+      const currentMercantilReal = currentStore.pillars.mercantil.realized;
+      const currentSortedSellers = [...currentSellers].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
+      const currentTop2 = (currentSortedSellers[0]?.pillars.mercantil.realized || 0) + (currentSortedSellers[1]?.pillars.mercantil.realized || 0);
+      const currentDependency = (currentTop2 / Math.max(currentMercantilReal, 1)) * 100;
+
+      const label = generatePeriodLabel(currentPeriod);
+
+      points.push({
+        periodId: 'current',
+        label,
+        score: calcPeriodScoreStore(currentStore, currentSellers),
+        mercantilReal: currentMercantilReal,
+        mercantilMeta: currentStore.pillars.mercantil.meta,
+        cdcReal: currentStore.pillars.cdc.realized,
+        cdcMeta: currentStore.pillars.cdc.meta,
+        servicesReal: currentStore.pillars.services.realized,
+        servicesMeta: currentStore.pillars.services.meta,
+        dependency: currentDependency,
+        mercantilICM: calcICM(currentMercantilReal, currentStore.pillars.mercantil.meta),
+        cdcICM: calcICM(currentStore.pillars.cdc.realized, currentStore.pillars.cdc.meta),
+        servicesICM: calcICM(currentStore.pillars.services.realized, currentStore.pillars.services.meta)
+      });
+    }
+
     return points;
-  }, [history, currentData]);
+  }, [history, currentData, periodMode]);
 
   const trend = useMemo(() => calcTrend(historyPoints.map(p => p.score)), [historyPoints]);
 

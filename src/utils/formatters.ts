@@ -71,7 +71,7 @@ export function generatePeriodLabel(period: any): string {
       case 'monthly':
         const monthName = months[(period.month || 1) - 1] || "Mês";
         const year = period.year || new Date().getFullYear();
-        return `${monthName}/${year}`;
+        return `${monthName}/${year}`.toUpperCase();
       case 'weekly':
         if (!period.startDate || !period.endDate) return "Intervalo não informado";
         // Parse YYYY-MM-DD to avoid timezone shifts

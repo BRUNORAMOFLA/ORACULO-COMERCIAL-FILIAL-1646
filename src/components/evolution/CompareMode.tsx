@@ -9,6 +9,7 @@ import {
   formatBRL, 
   formatPercentBR 
 } from '../../lib/intelligence/score';
+import { generatePeriodLabel } from '../../utils/formatters';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -29,9 +30,10 @@ import ReactMarkdown from 'react-markdown';
 interface Props {
   history: OracleHistory;
   currentData: OracleResult;
+  periodMode: 'DIARIO' | 'SEMANAL' | 'MENSAL';
 }
 
-export const CompareMode: React.FC<Props> = ({ history, currentData }) => {
+export const CompareMode: React.FC<Props> = ({ history, currentData, periodMode }) => {
   const [periodAId, setPeriodAId] = useState<string>('');
   const [periodBId, setPeriodBId] = useState<string>('current');
   const [comparison, setComparison] = useState<ComparisonResult | null>(null);
@@ -212,9 +214,12 @@ Gere o diagnóstico estratégico conforme as regras de 6 blocos obrigatórios.
               className="w-full p-3 bg-zinc-50 border border-zinc-100 rounded-xl text-sm font-bold text-zinc-900 outline-none focus:ring-2 ring-zinc-900/5"
             >
               <option value="">Selecione...</option>
-              {records.map(r => (
-                <option key={r.id} value={r.id}>{r.id}</option>
-              ))}
+              {records.map(r => {
+                const label = generatePeriodLabel(r.dados.store.period);
+                return (
+                  <option key={r.id} value={r.id}>{label}</option>
+                );
+              })}
             </select>
           </div>
           <div className="space-y-2">
@@ -225,9 +230,12 @@ Gere o diagnóstico estratégico conforme as regras de 6 blocos obrigatórios.
               className="w-full p-3 bg-zinc-50 border border-zinc-100 rounded-xl text-sm font-bold text-zinc-900 outline-none focus:ring-2 ring-zinc-900/5"
             >
               <option value="current">Dados Atuais (Em edição)</option>
-              {records.map(r => (
-                <option key={r.id} value={r.id}>{r.id}</option>
-              ))}
+              {records.map(r => {
+                const label = generatePeriodLabel(r.dados.store.period);
+                return (
+                  <option key={r.id} value={r.id}>{label}</option>
+                );
+              })}
             </select>
           </div>
           <div className="flex items-end">
