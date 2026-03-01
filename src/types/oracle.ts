@@ -135,6 +135,12 @@ export interface OracleHistory {
   registros: HistoryRecord[];
 }
 
+export interface OracleHistoryV1 {
+  diario: HistoryRecord[];
+  semanal: HistoryRecord[];
+  mensal: HistoryRecord[];
+}
+
 export interface IntelligenceRadar {
   strongestPillar: string;
   vulnerablePillar: string;

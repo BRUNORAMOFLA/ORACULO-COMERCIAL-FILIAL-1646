@@ -5,7 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { EvolutionTab } from './components/evolution/EvolutionTab';
 import { AISummary } from './components/AISummary';
 import { DataImporter } from './components/DataImporter';
-import { OracleData, OracleHistory, HistoryRecord, Period } from './types/oracle';
+import { OracleData, OracleHistory, HistoryRecord, Period, OracleHistoryV1 } from './types/oracle';
 import { processOracle } from './logic/oracleProcessor';
 import { motion, AnimatePresence } from 'motion/react';
 import { CrystalBall } from './components/CrystalBall';
@@ -15,11 +15,23 @@ import { SwitchPeriodModal } from './components/SwitchPeriodModal';
 
 const STORAGE_KEY = 'oraculo-comercial-storage';
 const HISTORY_KEY = 'oraculo-comercial-historico';
+const HISTORY_V1_KEY = 'oracle_history:v1';
 
 const parseDateSafe = (dateStr: string) => {
   if (!dateStr) return new Date();
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
+};
+
+const migrateHistory = (oldRegistros: HistoryRecord[]): OracleHistoryV1 => {
+  const newHistory: OracleHistoryV1 = { diario: [], semanal: [], mensal: [] };
+  oldRegistros.forEach(record => {
+    const type = record.tipo || record.dados.store.period.type;
+    if (type === 'daily') newHistory.diario.push(record);
+    else if (type === 'weekly') newHistory.semanal.push(record);
+    else if (type === 'monthly') newHistory.mensal.push(record);
+  });
+  return newHistory;
 };
 
 const formatHistoryLabel = (record: HistoryRecord) => {
@@ -127,31 +139,43 @@ export default function App() {
   });
   
   const [activeTab, setActiveTab] = useState<'input' | 'dashboard' | 'evolution'>('input');
+  const [periodMode, setPeriodMode] = useState<'DIARIO' | 'SEMANAL' | 'MENSAL'>('DIARIO');
   const [isDirty, setIsDirty] = useState(false);
   const [pendingPeriodChange, setPendingPeriodChange] = useState<Period | null>(null);
   const [autoSave, setAutoSave] = useState(false);
   
-  const [history, setHistory] = useState<OracleHistory>(() => {
+  const [history, setHistory] = useState<OracleHistoryV1>(() => {
     try {
-      const saved = localStorage.getItem(HISTORY_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return parsed.registros ? parsed : { registros: [] };
+      const savedV1 = localStorage.getItem(HISTORY_V1_KEY);
+      if (savedV1) return JSON.parse(savedV1);
+
+      const oldSaved = localStorage.getItem(HISTORY_KEY);
+      if (oldSaved) {
+        const oldHistory = JSON.parse(oldSaved);
+        const migrated = migrateHistory(oldHistory.registros || []);
+        localStorage.setItem(HISTORY_V1_KEY, JSON.stringify(migrated));
+        return migrated;
       }
     } catch (e) {
       console.error("Error loading history:", e);
     }
-    return { registros: [] };
+    return { diario: [], semanal: [], mensal: [] };
   });
 
-  const processedData = useMemo(() => processOracle(data, history.registros), [data, history]);
+  const currentHistory = useMemo(() => {
+    if (periodMode === 'DIARIO') return history.diario;
+    if (periodMode === 'SEMANAL') return history.semanal;
+    return history.mensal;
+  }, [history, periodMode]);
+
+  const processedData = useMemo(() => processOracle(data, currentHistory), [data, currentHistory]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }, [data]);
 
   useEffect(() => {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    localStorage.setItem(HISTORY_V1_KEY, JSON.stringify(history));
   }, [history]);
 
   const generateRecordId = (d: OracleData) => {
@@ -194,12 +218,22 @@ export default function App() {
   const handleSave = (silent = false) => {
     try {
       const recordId = generateRecordId(data);
-      const registros = history?.registros || [];
-      const existingIndex = registros.findIndex(r => r.id === recordId);
+      const type = data.store.period.type;
+      const modeKey = type === 'daily' ? 'diario' : type === 'weekly' ? 'semanal' : 'mensal';
+      const registros = history[modeKey];
+      
+      const label = generatePeriodLabel(data.store.period);
+      const startDate = data.store.period.startDate || '';
+      const endDate = data.store.period.endDate || '';
+      
+      const existingIndex = registros.findIndex(r => {
+        const p = r.dados.store.period;
+        return generatePeriodLabel(p) === label && p.startDate === startDate && p.endDate === endDate;
+      });
       
       const newRecord: HistoryRecord = {
         id: recordId,
-        tipo: data.store.period.type,
+        tipo: type,
         dataReferencia: recordId,
         dados: JSON.parse(JSON.stringify({ ...processedData, generatedAt: new Date().toISOString() }))
       };
@@ -211,7 +245,7 @@ export default function App() {
         newRegistros.unshift(newRecord);
       }
 
-      setHistory({ registros: newRegistros });
+      setHistory(prev => ({ ...prev, [modeKey]: newRegistros }));
       setData(newRecord.dados);
       setIsDirty(false);
       
@@ -239,7 +273,9 @@ export default function App() {
     newData.store.period = newPeriod;
     
     const newRecordId = generateRecordId(newData);
-    const existingRecord = history.registros.find(r => r.id === newRecordId);
+    const type = newPeriod.type;
+    const modeKey = type === 'daily' ? 'diario' : type === 'weekly' ? 'semanal' : 'mensal';
+    const existingRecord = history[modeKey].find(r => r.id === newRecordId);
 
     if (existingRecord) {
       setData(JSON.parse(JSON.stringify(existingRecord.dados)));
@@ -255,12 +291,24 @@ export default function App() {
     setPendingPeriodChange(null);
   };
 
-  const loadFromHistory = (recordId: string) => {
-    const record = history.registros.find(r => r.id === recordId);
+  const loadFromHistory = (recordId: string, mode: 'DIARIO' | 'SEMANAL' | 'MENSAL') => {
+    const modeKey = mode === 'DIARIO' ? 'diario' : mode === 'SEMANAL' ? 'semanal' : 'mensal';
+    const record = history[modeKey].find(r => r.id === recordId);
     if (record) {
+      setPeriodMode(mode);
       setData(JSON.parse(JSON.stringify(record.dados)));
       setIsDirty(false);
       setActiveTab('dashboard');
+    }
+  };
+
+  const removeFromHistory = (recordId: string, mode: 'DIARIO' | 'SEMANAL' | 'MENSAL') => {
+    if (window.confirm("Deseja remover este registro do histórico?")) {
+      const modeKey = mode === 'DIARIO' ? 'diario' : mode === 'SEMANAL' ? 'semanal' : 'mensal';
+      setHistory(prev => ({
+        ...prev,
+        [modeKey]: prev[modeKey].filter(r => r.id !== recordId)
+      }));
     }
   };
 
@@ -314,20 +362,39 @@ export default function App() {
               </button>
             </div>
 
-            {history.registros.length > 0 && (
-              <div className="mr-2 flex items-center">
-                <select 
-                  onChange={(e) => loadFromHistory(e.target.value)}
-                  className="bg-white border-none text-[10px] md:text-xs font-bold px-2 py-1.5 rounded-lg outline-none cursor-pointer text-primary hover:text-primary/80 transition-colors"
-                  defaultValue=""
-                >
-                  <option value="" disabled>CARREGAR HISTÓRICO</option>
-                  {history.registros.map(r => (
-                    <option key={r.id} value={r.id}>{formatHistoryLabel(r)}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div className="flex items-center gap-1 bg-white p-1 rounded-lg shadow-sm">
+              {[
+                { label: 'Diário', mode: 'DIARIO' as const, records: history.diario },
+                { label: 'Semanal', mode: 'SEMANAL' as const, records: history.semanal },
+                { label: 'Mensal', mode: 'MENSAL' as const, records: history.mensal }
+              ].map((h) => (
+                <div key={h.mode} className="relative group">
+                  <select 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.startsWith('remove:')) {
+                        removeFromHistory(val.replace('remove:', ''), h.mode);
+                        e.target.value = "";
+                      } else if (val) {
+                        loadFromHistory(val, h.mode);
+                        e.target.value = "";
+                      }
+                    }}
+                    className={`bg-transparent border-none text-[9px] md:text-[10px] font-black px-2 py-1.5 rounded-md outline-none cursor-pointer transition-colors uppercase tracking-tighter ${periodMode === h.mode ? 'text-primary' : 'text-zinc-400 hover:text-zinc-600'}`}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>{h.label}</option>
+                    {h.records.map(r => (
+                      <optgroup key={r.id} label={formatHistoryLabel(r)}>
+                        <option value={r.id}>Carregar</option>
+                        <option value={`remove:${r.id}`} className="text-red-500">Remover</option>
+                      </optgroup>
+                    ))}
+                    {h.records.length === 0 && <option disabled>Vazio</option>}
+                  </select>
+                </div>
+              ))}
+            </div>
             <button 
               onClick={() => setActiveTab('input')}
               className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all ${activeTab === 'input' ? 'bg-white shadow-sm text-primary' : 'text-zinc-500 hover:text-primary'}`}
@@ -341,7 +408,14 @@ export default function App() {
               <LayoutDashboard size={14} className="hidden xs:block" /> DASHBOARD
             </button>
             <button 
-              onClick={() => setActiveTab('evolution')}
+              onClick={() => {
+                setActiveTab('evolution');
+                // Auto-set periodMode based on current data period type
+                const type = data.store.period.type;
+                if (type === 'daily') setPeriodMode('DIARIO');
+                else if (type === 'weekly') setPeriodMode('SEMANAL');
+                else if (type === 'monthly') setPeriodMode('MENSAL');
+              }}
               className={`flex items-center gap-1 md:gap-2 px-2 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all ${activeTab === 'evolution' ? 'bg-white shadow-sm text-primary' : 'text-zinc-500 hover:text-primary'}`}
             >
               <TrendingUp size={14} className="hidden xs:block" /> EVOLUÇÃO
@@ -422,7 +496,12 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
-              <EvolutionTab history={history} currentData={processedData} />
+              <EvolutionTab 
+                history={{ registros: currentHistory }} 
+                currentData={processedData} 
+                periodMode={periodMode}
+                onPeriodModeChange={setPeriodMode}
+              />
             </motion.div>
           )}
         </AnimatePresence>

@@ -9,17 +9,39 @@ import { HistoryMode } from './HistoryMode';
 interface Props {
   history: OracleHistory;
   currentData: OracleResult;
+  periodMode: 'DIARIO' | 'SEMANAL' | 'MENSAL';
+  onPeriodModeChange: (mode: 'DIARIO' | 'SEMANAL' | 'MENSAL') => void;
 }
 
-export const EvolutionTab: React.FC<Props> = ({ history, currentData }) => {
+export const EvolutionTab: React.FC<Props> = ({ history, currentData, periodMode, onPeriodModeChange }) => {
   const [mode, setMode] = useState<'compare' | 'history'>('compare');
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-2">
-          <TrendingUp size={20} className="text-zinc-900" />
-          <h2 className="text-lg font-bold text-zinc-900 uppercase tracking-tight">Evolução Estratégica</h2>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={20} className="text-zinc-900" />
+            <h2 className="text-lg font-bold text-zinc-900 uppercase tracking-tight">Evolução Estratégica</h2>
+          </div>
+          
+          <div className="flex bg-zinc-100 p-1 rounded-xl">
+            {[
+              { label: 'Diário', mode: 'DIARIO' as const },
+              { label: 'Semanal', mode: 'SEMANAL' as const },
+              { label: 'Mensal', mode: 'MENSAL' as const }
+            ].map((p) => (
+              <button
+                key={p.mode}
+                onClick={() => onPeriodModeChange(p.mode)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                  periodMode === p.mode ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex bg-zinc-100 p-1 rounded-xl w-full sm:w-auto">
