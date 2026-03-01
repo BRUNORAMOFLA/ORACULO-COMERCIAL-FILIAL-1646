@@ -17,7 +17,7 @@ export function calculateGap(meta: number, realized: number): number {
 }
 
 export function calculateHealthIndex(mercantilIC: number, cdcIC: number, servicesIC: number): number {
-  return (mercantilIC * WEIGHTS.mercantil) + (cdcIC * WEIGHTS.cdc) + (servicesIC * WEIGHTS.services);
+  return Math.round((mercantilIC * WEIGHTS.mercantil) + (cdcIC * WEIGHTS.cdc) + (servicesIC * WEIGHTS.services));
 }
 
 export function classifyHealth(index: number): string {

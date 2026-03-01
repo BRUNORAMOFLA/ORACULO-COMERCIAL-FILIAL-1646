@@ -154,7 +154,11 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   }
 
   // Store Health Score (Weighted)
-  const healthScore = (store.pillars.mercantil.icm * 0.4) + (store.pillars.cdc.icm * 0.3) + (store.pillars.services.icm * 0.3);
+  const healthScore = calculateHealthIndex(
+    store.pillars.mercantil.icm,
+    store.pillars.cdc.icm,
+    store.pillars.services.icm
+  );
   let healthReading = "";
   if (healthScore >= 85) healthReading = "Operação saudável";
   else if (healthScore >= 70) healthReading = "Estável com atenção";
@@ -249,10 +253,10 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
     result.projection.cdcGap = store.pillars.cdc.meta - result.projection.cdcProjected;
     result.projection.servicesGap = store.pillars.services.meta - result.projection.servicesProjected;
 
-    const avgProjectedICM = (
-      (result.projection.mercantilProjected / (store.pillars.mercantil.meta || 1)) * 40 +
-      (result.projection.cdcProjected / (store.pillars.cdc.meta || 1)) * 30 +
-      (result.projection.servicesProjected / (store.pillars.services.meta || 1)) * 30
+    const avgProjectedICM = calculateHealthIndex(
+      (result.projection.mercantilProjected / (store.pillars.mercantil.meta || 1)) * 100,
+      (result.projection.cdcProjected / (store.pillars.cdc.meta || 1)) * 100,
+      (result.projection.servicesProjected / (store.pillars.services.meta || 1)) * 100
     );
 
     if (avgProjectedICM >= 100) result.projection.probability = 'Alta';
