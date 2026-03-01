@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { OracleData } from '../types/oracle';
+import { usePhotoStorage } from '../hooks/usePhotoStorage';
 import { 
   Activity, 
   Target, 
@@ -15,7 +16,8 @@ import {
   Package,
   Trophy,
   Star,
-  ChevronRight
+  ChevronRight,
+  Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -32,6 +34,7 @@ import {
 } from 'recharts';
 import { formatNumberBR, formatCurrencyBR } from '../utils/formatters';
 import { FeedbackModal } from './FeedbackModal';
+import { TripleCrownSellerItem } from './TripleCrownSellerItem';
 import { Seller, OracleResult } from '../types/oracle';
 import { IntelligenceRadar } from './IntelligenceRadar';
 import { 
@@ -57,6 +60,26 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
   const [activeTab, setActiveTab] = useState<'crown' | 'mvp'>('crown');
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  const periodKey = data.store.period.label.replace(/\s+/g, '_');
+  const mvpPhoto = usePhotoStorage(`mvp_photo_${periodKey}`);
+  const [activePhotoMenu, setActivePhotoMenu] = useState<'mvp' | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
+        setActiveTooltip(null);
+      }
+      // Close photo menu if clicking outside
+      if (activePhotoMenu) {
+        setActivePhotoMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activePhotoMenu]);
 
   const healthData = [
     { name: 'Saúde', value: data.store.healthIndex },
@@ -76,6 +99,60 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
   const mvpSeller = data.sellers.find(s => s.id === data.mvpId);
 
   const filename = `Oraculo_Comercial_${data.store.name}_${data.store.period.label.replace(/\//g, '-')}`;
+
+  // Tooltip Logic
+  const getHealthTooltip = () => {
+    const { pillars, healthIndex, classification } = data.store;
+    return `Saúde calculada com base no ICM médio ponderado dos pilares:
+Mercantil: ${pillars.mercantil.icm.toFixed(1)}%
+CDC: ${pillars.cdc.icm.toFixed(1)}%
+Serviços: ${pillars.services.icm.toFixed(1)}%
+Resultado final: ${healthIndex.toFixed(1)}% classificado como ${classification}.`;
+  };
+
+  const getOperationalTooltip = () => {
+    const { operational } = data.store.pillars;
+    const totalMeta = operational.cards.meta + operational.combos.meta;
+    const totalReal = operational.cards.realized + operational.combos.realized;
+    const percent = totalMeta > 0 ? (totalReal / totalMeta) * 100 : 0;
+
+    if (totalMeta === 0) return "Indicador sem meta definida no período.";
+
+    return `Execução operacional baseada na conversão de Cartões e Combos.
+Meta: ${totalMeta}
+Realizado: ${totalReal}
+Entrega: ${percent.toFixed(1)}%.`;
+  };
+
+  const getDependencyTooltip = () => {
+    const { top1Contribution } = data.distribution;
+    const topSeller = data.sellers.sort((a, b) => b.score - a.score)[0];
+    return `Dependência calculada com base na concentração de resultado.
+Maior concentração em: ${topSeller?.name || 'N/A'}
+Participação: ${top1Contribution.toFixed(1)}% do total.`;
+  };
+
+  const getProjectionTooltip = () => {
+    const { period, pillars } = data.store;
+    const dailyAvg = period.businessDaysElapsed > 0 ? pillars.mercantil.realized / period.businessDaysElapsed : 0;
+    const remainingDays = period.businessDaysTotal - period.businessDaysElapsed;
+    const projection = data.projection.mercantilProjected;
+
+    return `Projeção baseada na média diária atual:
+Média diária: ${formatCurrencyBR(dailyAvg)}
+Dias úteis restantes: ${remainingDays}
+Projeção estimada: ${formatCurrencyBR(projection)}.`;
+  };
+
+  const getMaturityTooltip = () => {
+    const sorted = [...data.sellers].sort((a, b) => b.score - a.score);
+    const dispersion = sorted.length > 0 ? sorted[0].score - sorted[sorted.length - 1].score : 0;
+    const above90 = data.sellers.length > 0 ? (data.sellers.filter(s => s.score > 90).length / data.sellers.length) * 100 : 0;
+
+    return `Maturidade avaliada pela estabilidade da equipe:
+Desvio entre melhor e pior vendedor: ${dispersion.toFixed(1)} pontos.
+Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
+  };
 
   return (
     <div className="space-y-8" id="dashboard-content">
@@ -138,21 +215,44 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
       
       {/* Top Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm relative">
           <div className="flex justify-between items-start mb-2">
             <span className="text-[10px] font-bold uppercase text-zinc-400">Saúde da Unidade</span>
-            <Activity size={14} className="text-accent" />
+            <button 
+              onClick={() => setActiveTooltip(activeTooltip === 'health' ? null : 'health')}
+              className="text-zinc-300 hover:text-primary transition-colors"
+            >
+              <Info size={14} />
+            </button>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-primary">{data.store.healthIndex.toFixed(1)}%</span>
             <span className={`text-[9px] font-bold uppercase ${getHealthColor(data.store.classification)}`}>{data.store.classification}</span>
           </div>
+          <AnimatePresence>
+            {activeTooltip === 'health' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed whitespace-pre-line"
+                ref={tooltipRef}
+              >
+                {getHealthTooltip()}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm relative">
           <div className="flex justify-between items-start mb-2">
             <span className="text-[10px] font-bold uppercase text-zinc-400">Execução Operacional</span>
-            <Package size={14} className="text-primary" />
+            <button 
+              onClick={() => setActiveTooltip(activeTooltip === 'operational' ? null : 'operational')}
+              className="text-zinc-300 hover:text-primary transition-colors"
+            >
+              <Info size={14} />
+            </button>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-primary">
@@ -160,23 +260,59 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
             </span>
             <span className="text-[9px] font-bold uppercase text-zinc-500">Cartões/Combos</span>
           </div>
+          <AnimatePresence>
+            {activeTooltip === 'operational' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed whitespace-pre-line"
+                ref={tooltipRef}
+              >
+                {getOperationalTooltip()}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm relative">
           <div className="flex justify-between items-start mb-2">
             <span className="text-[10px] font-bold uppercase text-zinc-400">Nível de Dependência</span>
-            <ShieldAlert size={14} className="text-accent" />
+            <button 
+              onClick={() => setActiveTooltip(activeTooltip === 'dependency' ? null : 'dependency')}
+              className="text-zinc-300 hover:text-primary transition-colors"
+            >
+              <Info size={14} />
+            </button>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-primary">{data.distribution.top1Contribution.toFixed(1)}%</span>
             <span className="text-[9px] font-bold uppercase text-zinc-500">{data.distribution.dependencyLevel}</span>
           </div>
+          <AnimatePresence>
+            {activeTooltip === 'dependency' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed whitespace-pre-line"
+                ref={tooltipRef}
+              >
+                {getDependencyTooltip()}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm relative">
           <div className="flex justify-between items-start mb-2">
             <span className="text-[10px] font-bold uppercase text-zinc-400">Projeção de Fechamento</span>
-            <TrendingUp size={14} className="text-emerald-500" />
+            <button 
+              onClick={() => setActiveTooltip(activeTooltip === 'projection' ? null : 'projection')}
+              className="text-zinc-300 hover:text-primary transition-colors"
+            >
+              <Info size={14} />
+            </button>
           </div>
           <div className="space-y-1">
             <div className="flex items-baseline gap-2">
@@ -185,6 +321,19 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
             </div>
             <p className="text-[8px] font-bold text-zinc-400 uppercase">Base: média diária × dias úteis restantes</p>
           </div>
+          <AnimatePresence>
+            {activeTooltip === 'projection' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed whitespace-pre-line"
+                ref={tooltipRef}
+              >
+                {getProjectionTooltip()}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </div>
 
@@ -196,12 +345,30 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
           </div>
           <Calendar size={20} className="text-accent" />
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm flex items-center justify-between relative">
           <div>
             <span className="text-[10px] font-bold uppercase text-zinc-400 block">Maturidade do Time</span>
             <span className="text-sm font-bold text-primary">{data.maturityIndex.classification}</span>
           </div>
-          <Users size={20} className="text-primary/20" />
+          <button 
+            onClick={() => setActiveTooltip(activeTooltip === 'maturity' ? null : 'maturity')}
+            className="text-zinc-300 hover:text-primary transition-colors"
+          >
+            <Info size={20} />
+          </button>
+          <AnimatePresence>
+            {activeTooltip === 'maturity' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed whitespace-pre-line"
+                ref={tooltipRef}
+              >
+                {getMaturityTooltip()}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -273,7 +440,7 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
                 <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-primary text-white rounded-xl gap-4">
                   <div className="flex items-center gap-3 w-full sm:w-auto">
                     <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${Object.values(data.store.tripleCrownStatus).every(v => v) ? 'bg-accent' : 'bg-white/10'}`}>
-                      <Award size={20} className={Object.values(data.store.tripleCrownStatus).every(v => v) ? 'text-white' : 'text-white'} />
+                      <Award size={20} className="text-white" />
                     </div>
                     <div>
                       <span className="text-[10px] font-bold uppercase text-white/50 block">Status da Unidade</span>
@@ -294,16 +461,12 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
                   {tripleCrownSellers.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {tripleCrownSellers.map(s => (
-                        <button 
+                        <TripleCrownSellerItem 
                           key={s.id} 
-                          onClick={() => setSelectedSeller(s)}
-                          className="flex items-center gap-3 p-3 border rounded-xl bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
-                            <Star size={16} fill="currentColor" />
-                          </div>
-                          <span className="text-sm font-bold text-zinc-900 underline decoration-zinc-200 underline-offset-4">{s.name}</span>
-                        </button>
+                          seller={s} 
+                          onSelect={setSelectedSeller} 
+                          periodKey={periodKey}
+                        />
                       ))}
                     </div>
                   ) : (
@@ -322,8 +485,54 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
                 {mvpSeller ? (
                   <>
                     <div className="relative">
-                      <div className="w-32 h-32 rounded-full bg-primary flex items-center justify-center shadow-2xl">
-                        <span className="text-4xl font-black text-white">{mvpSeller.name.charAt(0)}</span>
+                      <div 
+                        className="w-32 h-32 rounded-full bg-primary flex items-center justify-center shadow-2xl cursor-pointer relative overflow-hidden"
+                        onClick={() => {
+                          if (mvpPhoto.photo) {
+                            setActivePhotoMenu('mvp');
+                          } else {
+                            mvpPhoto.triggerInput();
+                          }
+                        }}
+                      >
+                        {mvpPhoto.photo ? (
+                          <img src={mvpPhoto.photo} alt={mvpSeller.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-4xl font-black text-white">{mvpSeller.name.charAt(0)}</span>
+                        )}
+
+                        <input 
+                          type="file" 
+                          ref={mvpPhoto.fileInputRef} 
+                          onChange={mvpPhoto.handleFileChange} 
+                          className="hidden" 
+                          accept="image/*"
+                        />
+
+                        <AnimatePresence>
+                          {activePhotoMenu === 'mvp' && (
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.9 }}
+                              className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2 z-10"
+                            >
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); mvpPhoto.triggerInput(); setActivePhotoMenu(null); }}
+                                className="text-[10px] font-bold uppercase hover:text-accent transition-colors"
+                              >
+                                Trocar Foto
+                              </button>
+                              <div className="w-8 h-[1px] bg-white/20" />
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); mvpPhoto.removePhoto(); setActivePhotoMenu(null); }}
+                                className="text-[10px] font-bold uppercase hover:text-red-400 transition-colors"
+                              >
+                                Remover Foto
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                       <div className="absolute -bottom-2 -right-2 bg-accent p-2 rounded-full border-4 border-white">
                         <Trophy size={20} className="text-white" />
