@@ -10,22 +10,24 @@ import { processOracle } from './logic/oracleProcessor';
 import { motion, AnimatePresence } from 'motion/react';
 import { CrystalBall } from './components/CrystalBall';
 import { LayoutDashboard, FileInput, Info, Save, Clock, RotateCcw, History, CheckCircle2, AlertCircle, TrendingUp } from 'lucide-react';
-import { formatDateTimeBR } from './utils/formatters';
+import { formatDateTimeBR, getISOWeek, generatePeriodLabel } from './utils/formatters';
 import { SwitchPeriodModal } from './components/SwitchPeriodModal';
 
 const STORAGE_KEY = 'oraculo-comercial-storage';
 const HISTORY_KEY = 'oraculo-comercial-historico';
 
-const getWeekNumber = (d: Date) => {
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = date.getUTCDay() || 7;
-  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return weekNo;
+const parseDateSafe = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
 };
 
-const formatHistoryLabel = (id: string) => {
+const formatHistoryLabel = (record: HistoryRecord) => {
+  const { id, dados } = record;
+  if (dados?.store?.period) {
+    return generatePeriodLabel(dados.store.period);
+  }
+  
   if (!id || typeof id !== 'string') return "Registro inválido";
   const parts = id.split('-');
   if (parts.length < 4) return "Registro legado (revisar)";
@@ -48,11 +50,12 @@ const formatHistoryLabel = (id: string) => {
 
   if (type === 'weekly' || type === 'semanal') {
     let weekDisplay = identifier;
-    if (identifier.includes('_')) {
-      // Fallback for old range-based format
+    if (identifier.includes('_') || identifier.length > 2) {
+      // Fallback for old range-based format or date-based identifier
       try {
-        const date = new Date(identifier.split('_')[0]);
-        weekDisplay = String(getWeekNumber(date));
+        const dateStr = identifier.includes('_') ? identifier.split('_')[0] : identifier;
+        const date = parseDateSafe(dateStr);
+        weekDisplay = String(getISOWeek(date));
       } catch (e) {
         weekDisplay = identifier;
       }
@@ -163,7 +166,8 @@ export default function App() {
       case 'daily': idPart = p.date || 'no-date'; break;
       case 'monthly': idPart = String(p.month || 1).padStart(2, '0'); break;
       case 'weekly':
-        const weekNum = p.startDate ? getWeekNumber(new Date(p.startDate)) : getWeekNumber(new Date());
+        const date = p.startDate ? parseDateSafe(p.startDate) : new Date();
+        const weekNum = getISOWeek(date);
         idPart = String(weekNum).padStart(2, '0');
         break;
       case 'custom': idPart = `${p.startDate}_${p.endDate}`; break;
@@ -197,7 +201,7 @@ export default function App() {
         id: recordId,
         tipo: data.store.period.type,
         dataReferencia: recordId,
-        dados: JSON.parse(JSON.stringify({ ...data, generatedAt: new Date().toISOString() }))
+        dados: JSON.parse(JSON.stringify({ ...processedData, generatedAt: new Date().toISOString() }))
       };
 
       const newRegistros = [...registros];
@@ -319,7 +323,7 @@ export default function App() {
                 >
                   <option value="" disabled>CARREGAR HISTÓRICO</option>
                   {history.registros.map(r => (
-                    <option key={r.id} value={r.id}>{formatHistoryLabel(r.id)}</option>
+                    <option key={r.id} value={r.id}>{formatHistoryLabel(r)}</option>
                   ))}
                 </select>
               </div>

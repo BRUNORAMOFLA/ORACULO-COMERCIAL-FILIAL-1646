@@ -37,6 +37,23 @@ export function formatDateTimeBR(isoString: string): string {
 }
 
 /**
+ * Calculates the ISO 8601 week number for a given date.
+ * Following ISO 8601: Week starts on Monday, Week 1 is the week with the first Thursday.
+ */
+export function getISOWeek(date: Date): number {
+  // Create a copy and work in UTC to avoid DST issues
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  // Set to nearest Thursday: current date + 4 - day number (Monday = 1, Sunday = 7)
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  // Get first day of year
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  // Calculate full weeks to nearest Thursday
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return weekNo;
+}
+
+/**
  * Generates a label for the period based on its type and values
  */
 export function generatePeriodLabel(period: any): string {
@@ -56,6 +73,19 @@ export function generatePeriodLabel(period: any): string {
         const year = period.year || new Date().getFullYear();
         return `${monthName}/${year}`;
       case 'weekly':
+        if (!period.startDate || !period.endDate) return "Intervalo não informado";
+        // Parse YYYY-MM-DD to avoid timezone shifts
+        const [wsy, wsm, wsd] = period.startDate.split('-').map(Number);
+        const startDateObj = new Date(wsy, wsm - 1, wsd);
+        
+        const weekNumber = getISOWeek(startDateObj);
+        const [wey, wem, wed] = period.endDate.split('-');
+        
+        // Format as DD/MM/YYYY for the label
+        const startFormatted = `${wsd.toString().padStart(2, '0')}/${wsm.toString().padStart(2, '0')}/${wsy}`;
+        const endFormatted = `${wed}/${wem}/${wey}`;
+        
+        return `Semana ${weekNumber.toString().padStart(2, '0')} – ${startFormatted} a ${endFormatted}`;
       case 'custom':
         if (!period.startDate || !period.endDate) return "Intervalo não informado";
         const [sy, sm, sd] = period.startDate.split('-');
