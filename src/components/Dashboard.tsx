@@ -17,7 +17,8 @@ import {
   Trophy,
   Star,
   ChevronRight,
-  Info
+  Info,
+  AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -138,11 +139,13 @@ Participação: ${top1Contribution.toFixed(1)}% do total.`;
     const dailyAvg = period.businessDaysElapsed > 0 ? pillars.mercantil.realized / period.businessDaysElapsed : 0;
     const remainingDays = period.businessDaysTotal - period.businessDaysElapsed;
     const projection = data.projection.mercantilProjected;
+    const neededDaily = remainingDays > 0 ? (pillars.mercantil.meta - pillars.mercantil.realized) / remainingDays : 0;
 
-    return `Projeção baseada na média diária atual:
-Média diária: ${formatCurrencyBR(dailyAvg)}
-Dias úteis restantes: ${remainingDays}
-Projeção estimada: ${formatCurrencyBR(projection)}.`;
+    return `Lógica da Projeção:
+1. Média Diária Atual: ${formatCurrencyBR(dailyAvg)}
+2. Dias Restantes: ${remainingDays}
+3. Projetado: Média x Dias Totais
+4. Média Necessária p/ Meta: ${formatCurrencyBR(Math.max(0, neededDaily))} por dia.`;
   };
 
   const getMaturityTooltip = () => {
@@ -457,33 +460,82 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
 
       {/* Projection Details */}
       {data.projection.isAvailable ? (
-        <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm">
-          <h3 className="text-xs font-bold uppercase text-zinc-400 mb-6">Detalhamento da Projeção</h3>
+        <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm space-y-6">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={18} className="text-primary" />
+              <h3 className="text-xs font-bold uppercase text-zinc-900">Detalhamento da Projeção Estratégica</h3>
+            </div>
+            <div className="flex items-center gap-4 text-[10px] font-bold uppercase text-zinc-400">
+              <span>Dias Totais: {data.store.period.businessDaysTotal}</span>
+              <span>Decorridos: {data.store.period.businessDaysElapsed}</span>
+              <span className="text-primary">Restantes: {data.store.period.businessDaysTotal - data.store.period.businessDaysElapsed}</span>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { label: 'Mercantil', proj: data.projection.mercantilProjected, gap: data.projection.mercantilGap, meta: data.store.pillars.mercantil.meta },
-              { label: 'CDC', proj: data.projection.cdcProjected, gap: data.projection.cdcGap, meta: data.store.pillars.cdc.meta },
-              { label: 'Serviços', proj: data.projection.servicesProjected, gap: data.projection.servicesGap, meta: data.store.pillars.services.meta },
-            ].map((p) => (
-              <div key={p.label} className="p-4 bg-zinc-50 rounded-xl space-y-3">
-                <span className="text-[10px] font-black uppercase text-zinc-400">{p.label}</span>
-                <div className="flex justify-between items-baseline">
-                  <span className="text-lg font-black text-zinc-900">{formatCurrencyBR(p.proj)}</span>
-                  <span className="text-[10px] font-bold text-zinc-500">Projetado</span>
+              { id: 'mercantil', label: 'Mercantil', proj: data.projection.mercantilProjected, gap: data.projection.mercantilGap, meta: data.store.pillars.mercantil.meta, realized: data.store.pillars.mercantil.realized },
+              { id: 'cdc', label: 'CDC', proj: data.projection.cdcProjected, gap: data.projection.cdcGap, meta: data.store.pillars.cdc.meta, realized: data.store.pillars.cdc.realized },
+              { id: 'services', label: 'Serviços', proj: data.projection.servicesProjected, gap: data.projection.servicesGap, meta: data.store.pillars.services.meta, realized: data.store.pillars.services.realized },
+            ].map((p) => {
+              const remainingDays = data.store.period.businessDaysTotal - data.store.period.businessDaysElapsed;
+              const neededDaily = remainingDays > 0 ? (p.meta - p.realized) / remainingDays : 0;
+              const currentDaily = data.store.period.businessDaysElapsed > 0 ? p.realized / data.store.period.businessDaysElapsed : 0;
+
+              return (
+                <div key={p.id} className="p-5 bg-zinc-50 rounded-2xl space-y-4 border border-zinc-100">
+                  <div className="flex justify-between items-center border-b border-zinc-200 pb-2">
+                    <span className="text-[10px] font-black uppercase text-primary">{p.label}</span>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${p.proj >= p.meta ? 'bg-emerald-100 text-emerald-700' : 'bg-accent/10 text-accent'}`}>
+                      {((p.proj / (p.meta || 1)) * 100).toFixed(0)}% PROJETADO
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase block">Média Diária Necessária</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className={`text-xl font-black ${neededDaily > currentDaily ? 'text-accent' : 'text-emerald-600'}`}>
+                        {formatCurrencyBR(Math.max(0, neededDaily))}
+                      </span>
+                      <span className="text-[8px] font-bold text-zinc-400">/ DIA</span>
+                    </div>
+                    <p className="text-[9px] text-zinc-500 italic">
+                      {neededDaily > currentDaily 
+                        ? `Atenção: Precisa vender ${formatCurrencyBR(neededDaily - currentDaily)} a mais por dia que a média atual.`
+                        : "Ritmo atual é suficiente para bater a meta."}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-100">
+                    <div>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase block">Projetado</span>
+                      <span className="text-sm font-black text-zinc-900">{formatCurrencyBR(p.proj)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase block">Gap Final</span>
+                      <span className={`text-sm font-black ${p.gap <= 0 ? 'text-emerald-600' : 'text-accent'}`}>
+                        {p.gap <= 0 ? 'ATINGIDA' : formatCurrencyBR(p.gap)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-[10px] font-bold">
-                  <span className="text-zinc-400">GAP VS META</span>
-                  <span className={p.gap <= 0 ? 'text-emerald-600' : 'text-red-600'}>
-                    {p.gap <= 0 ? 'META ATINGIDA' : formatCurrencyBR(p.gap)}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+          
+          <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex items-start gap-3">
+            <Info size={16} className="text-primary mt-0.5" />
+            <p className="text-[10px] text-zinc-600 leading-relaxed">
+              <strong className="text-primary uppercase">Como usar para decisão:</strong> A projeção utiliza sua <strong>Média Diária Atual</strong> (Vendas ÷ Dias Decorridos) e a projeta para os <strong>Dias Restantes</strong>. Se a "Média Necessária" for maior que a sua média atual, você precisa de um plano de ação imediato para aumentar o ritmo de vendas, caso contrário, o GAP final se confirmará.
+            </p>
           </div>
         </div>
       ) : (
-        <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 text-amber-700 text-xs font-bold text-center">
-          Projeção indisponível (dados insuficientes para cálculo de tendência)
+        <div className="bg-amber-50 p-8 rounded-2xl border border-dashed border-amber-200 text-center space-y-2">
+          <AlertCircle size={24} className="text-amber-500 mx-auto" />
+          <p className="text-xs font-bold text-amber-700 uppercase">Projeção Indisponível</p>
+          <p className="text-[10px] text-amber-600 max-w-xs mx-auto">Vá na aba ENTRADA e informe os "Dias Úteis Totais" e "Dias Decorridos" para habilitar a inteligência preditiva.</p>
         </div>
       )}
 

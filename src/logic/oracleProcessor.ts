@@ -241,8 +241,10 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   }
 
   // 9. Projection
-  if (store.period.businessDaysElapsed > 0 && store.period.businessDaysTotal > 0) {
-    const projectionFactor = store.period.businessDaysTotal / store.period.businessDaysElapsed;
+  if (store.period.businessDaysTotal > 0) {
+    const elapsed = store.period.businessDaysElapsed;
+    const total = store.period.businessDaysTotal;
+    const projectionFactor = elapsed > 0 ? total / elapsed : 0;
     
     result.projection.isAvailable = true;
     result.projection.mercantilProjected = store.pillars.mercantil.realized * projectionFactor;
@@ -259,9 +261,15 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
       (result.projection.servicesProjected / (store.pillars.services.meta || 1)) * 100
     );
 
-    if (avgProjectedICM >= 100) result.projection.probability = 'Alta';
-    else if (avgProjectedICM >= 90) result.projection.probability = 'Média';
-    else result.projection.probability = 'Baixa';
+    if (elapsed === 0) {
+      result.projection.probability = 'Planejamento';
+    } else if (avgProjectedICM >= 100) {
+      result.projection.probability = 'Alta';
+    } else if (avgProjectedICM >= 90) {
+      result.projection.probability = 'Média';
+    } else {
+      result.projection.probability = 'Baixa';
+    }
   } else {
     result.projection.isAvailable = false;
     result.projection.probability = 'Dados insuficientes';

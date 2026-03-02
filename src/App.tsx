@@ -125,7 +125,9 @@ const INITIAL_STATE: OracleData = {
   projection: { 
     mercantilProjected: 0, cdcProjected: 0, servicesProjected: 0, 
     mercantilGap: 0, cdcGap: 0, servicesGap: 0,
-    probability: '', isAvailable: false 
+    mercantilStatus: 'SEM BASE', cdcStatus: 'SEM BASE', servicesStatus: 'SEM BASE',
+    probability: '', isAvailable: false,
+    daysTotal: 0, daysElapsed: 0
   },
   simulator: { scenario: '', newHealthIndex: 0, newClassification: '' },
   history: [],

@@ -76,6 +76,12 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
     onChange(newData);
   };
 
+  const updatePeriodMetadata = (field: 'businessDaysTotal' | 'businessDaysElapsed', value: number) => {
+    const newData: OracleData = JSON.parse(JSON.stringify(data));
+    newData.store.period[field] = value;
+    onChange(newData);
+  };
+
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Period & Store Info */}
@@ -175,13 +181,13 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
           <NumberInput 
             label="Dias Úteis Totais"
             value={data.store.period.businessDaysTotal}
-            onChange={val => updateStorePeriod('businessDaysTotal', val)}
+            onChange={val => updatePeriodMetadata('businessDaysTotal', val)}
             plain={true}
           />
           <NumberInput 
             label="Dias Decorridos"
             value={data.store.period.businessDaysElapsed}
-            onChange={val => updateStorePeriod('businessDaysElapsed', val)}
+            onChange={val => updatePeriodMetadata('businessDaysElapsed', val)}
             plain={true}
           />
         </div>

@@ -183,8 +183,14 @@ Gere as análises Interna e Executiva conforme as regras de blocos obrigatórios
 `;
       const result = await generateHistoryAnalysis(prompt);
       setAnalysis(result);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      const isRateLimit = error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED');
+      if (isRateLimit) {
+        alert("O limite de consultas da IA foi atingido. Por favor, aguarde um minuto e tente novamente.");
+      } else {
+        alert("Erro ao gerar análise histórica. Tente novamente mais tarde.");
+      }
     } finally {
       setIsGenerating(false);
     }

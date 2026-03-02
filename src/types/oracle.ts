@@ -11,6 +11,7 @@ export interface Period {
   year?: number;
   businessDaysTotal: number;
   businessDaysElapsed: number;
+  isD1Mode?: boolean;
 }
 
 export interface OperationalIndicator {
@@ -114,8 +115,13 @@ export interface Projection {
   mercantilGap: number;
   cdcGap: number;
   servicesGap: number;
+  mercantilStatus: string;
+  cdcStatus: string;
+  servicesStatus: string;
   probability: string;
   isAvailable: boolean;
+  daysTotal: number;
+  daysElapsed: number;
 }
 
 export interface Simulator {

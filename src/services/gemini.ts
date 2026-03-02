@@ -3,10 +3,33 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function callGeminiWithRetry(fn: () => Promise<any>, maxRetries = 3) {
+  let lastError: any;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      const isRateLimit = error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED');
+      
+      if (isRateLimit && i < maxRetries - 1) {
+        const waitTime = Math.pow(2, i) * 2000; // 2s, 4s, 8s
+        console.warn(`Gemini API rate limit hit. Retrying in ${waitTime}ms... (Attempt ${i + 1}/${maxRetries})`);
+        await sleep(waitTime);
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+}
+
 export const generateStrategicDiagnosis = async (prompt: string) => {
   try {
     const model = "gemini-3-flash-preview";
-    const response = await genAI.models.generateContent({
+    const response = await callGeminiWithRetry(() => genAI.models.generateContent({
       model,
       contents: prompt,
       config: {
@@ -25,11 +48,14 @@ Tom: técnico, estratégico e provocativo. Sem emojis. Sem floreios. Sem narrati
 Fundamente sempre nos números recebidos.`,
         temperature: 0.7,
       }
-    });
+    }));
 
     return response.text;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro ao gerar diagnóstico:", error);
+    if (error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED')) {
+      return "O Oráculo atingiu o limite de consultas temporário da IA. Por favor, aguarde um minuto e tente novamente.";
+    }
     return "Erro ao processar o diagnóstico estratégico. Verifique sua conexão ou tente novamente mais tarde.";
   }
 };
@@ -37,7 +63,7 @@ Fundamente sempre nos números recebidos.`,
 export const generateHistoryAnalysis = async (prompt: string) => {
   try {
     const model = "gemini-3-flash-preview";
-    const response = await genAI.models.generateContent({
+    const response = await callGeminiWithRetry(() => genAI.models.generateContent({
       model,
       contents: prompt,
       config: {
@@ -115,10 +141,10 @@ Regras Gerais:
         },
         temperature: 0.7,
       }
-    });
+    }));
 
     return JSON.parse(response.text);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro ao gerar análise histórica:", error);
     throw error;
   }
