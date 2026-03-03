@@ -35,3 +35,27 @@ export function classifySeller(score: number): string {
   if (score >= 60) return 'Oscilante';
   return 'Risco';
 }
+
+export function calculateBalanceIndex(icms: number[]): number {
+  const validIcms = icms.filter(v => v > 0);
+  if (validIcms.length < 2) return 1; // Default to balanced if not enough data
+  const min = Math.min(...validIcms);
+  const max = Math.max(...validIcms);
+  return max > 0 ? min / max : 1;
+}
+
+export function classifySellerProfile(score: number, balanceIndex: number, icms: number[]): string {
+  if (score >= 100) {
+    return balanceIndex >= 0.6 ? 'DOMINANTE EQUILIBRADO' : 'DOMINANTE DESBALANCEADO';
+  }
+  
+  if (score >= 50 && score < 100) {
+    const hasPillarBelow40 = icms.some(v => v < 40);
+    if (hasPillarBelow40) return 'VOLUME FRÁGIL';
+    return 'ESTÁVEL'; // Fallback for 50-99 without pillar < 40
+  }
+  
+  if (score < 50) return 'BAIXA TRAÇÃO';
+  
+  return 'EM DESENVOLVIMENTO';
+}

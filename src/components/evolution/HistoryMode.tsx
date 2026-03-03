@@ -84,7 +84,9 @@ export const HistoryMode: React.FC<Props> = ({ history, currentData, periodMode 
       const mercantilReal = store.pillars.mercantil.realized;
       const mercantilMeta = store.pillars.mercantil.meta;
       
-      const sortedSellers = [...sellers].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
+      const EXCLUDED_SELLER = 'Caio';
+      const filteredSellers = sellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
+      const sortedSellers = [...filteredSellers].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
       const top2 = (sortedSellers[0]?.pillars.mercantil.realized || 0) + (sortedSellers[1]?.pillars.mercantil.realized || 0);
       const dependency = (top2 / Math.max(mercantilReal, 1)) * 100;
 
@@ -126,7 +128,10 @@ export const HistoryMode: React.FC<Props> = ({ history, currentData, periodMode 
     if (!isRedundant) {
       const currentSellers = currentData.sellers;
       const currentMercantilReal = currentStore.pillars.mercantil.realized;
-      const currentSortedSellers = [...currentSellers].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
+      
+      const EXCLUDED_SELLER = 'Caio';
+      const filteredCurrentSellers = currentSellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
+      const currentSortedSellers = [...filteredCurrentSellers].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
       const currentTop2 = (currentSortedSellers[0]?.pillars.mercantil.realized || 0) + (currentSortedSellers[1]?.pillars.mercantil.realized || 0);
       const currentDependency = (currentTop2 / Math.max(currentMercantilReal, 1)) * 100;
 

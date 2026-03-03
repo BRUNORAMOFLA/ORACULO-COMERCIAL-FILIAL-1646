@@ -5,7 +5,9 @@ import {
   calculateGap, 
   calculateHealthIndex, 
   classifyHealth, 
-  classifySeller 
+  classifySeller,
+  calculateBalanceIndex,
+  classifySellerProfile
 } from '../calculations/formulas';
 import { generatePeriodLabel } from '../utils/formatters';
 
@@ -29,6 +31,9 @@ function analyzeTrend(values: number[]): string {
 export function processOracle(data: OracleData, history: HistoryRecord[] = []): OracleResult {
   const result = JSON.parse(JSON.stringify(data)) as OracleResult;
   const { store, sellers } = result;
+
+  const EXCLUDED_SELLER = 'Caio';
+  const filteredSellers = sellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
 
   // 0. Update Period Label and Timestamp
   store.period.label = generatePeriodLabel(store.period);
@@ -86,6 +91,11 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
       seller.pillars.services.icm
     );
     seller.classification = classifySeller(seller.score);
+    
+    const icms = [seller.pillars.mercantil.icm, seller.pillars.cdc.icm, seller.pillars.services.icm];
+    seller.balanceIndex = calculateBalanceIndex(icms);
+    seller.profile = classifySellerProfile(seller.score, seller.balanceIndex, icms);
+
     seller.isTripleCrown = seller.pillars.mercantil.icm >= 100 && seller.pillars.cdc.icm >= 100 && seller.pillars.services.icm >= 100;
   });
 
@@ -140,12 +150,12 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
 
   // Concentration & Radar
   let concentrationRisk = "Saudável";
-  if (sellers.length > 0) {
-    const sortedSellers = [...sellers].sort((a, b) => b.score - a.score);
-    const totalScore = sellers.reduce((acc, s) => acc + s.score, 0);
+  if (filteredSellers.length > 0) {
+    const sortedSellers = [...filteredSellers].sort((a, b) => b.score - a.score);
+    const totalScore = filteredSellers.reduce((acc, s) => acc + s.score, 0);
     
     if (totalScore > 0) {
-      const top2Score = sellers.length > 1 ? sortedSellers[0].score + sortedSellers[1].score : sortedSellers[0].score;
+      const top2Score = filteredSellers.length > 1 ? sortedSellers[0].score + sortedSellers[1].score : sortedSellers[0].score;
       const concentration = (top2Score / totalScore) * 100;
       
       if (concentration > 60) concentrationRisk = "Risco estratégico elevado por concentração excessiva.";
@@ -171,7 +181,7 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
     { name: 'Serviços', icm: store.pillars.services.icm }
   ].sort((a, b) => b.icm - a.icm);
 
-  const sortedSellersByScore = [...sellers].sort((a, b) => b.score - a.score);
+  const sortedSellersByScore = [...filteredSellers].sort((a, b) => b.score - a.score);
   
   // Calculate General Trend with points
   let generalTrendText = "Estabilidade operacional.";
@@ -194,9 +204,9 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
       strongestPillar: pillars[0].name,
       vulnerablePillar: pillars[2].name,
       risingSeller: sortedSellersByScore[0]?.name || "N/A",
-      riskySeller: sellers.find(s => s.intelligence?.riskAlert)?.name || "Nenhum",
+      riskySeller: filteredSellers.find(s => s.intelligence?.riskAlert)?.name || "Nenhum",
       generalTrend: generalTrendText,
-      dispersionLevel: sellers.length > 0 ? (sellers.filter(s => s.score < 80).length / sellers.length > 0.3 ? "Alta" : "Baixa") : "N/A"
+      dispersionLevel: filteredSellers.length > 0 ? (filteredSellers.filter(s => s.score < 80).length / filteredSellers.length > 0.3 ? "Alta" : "Baixa") : "N/A"
     },
     storeTrend,
     concentrationRisk,
@@ -205,13 +215,13 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   };
 
   // 7. Distribution (Legacy Support)
-  if (sellers.length > 0) {
-    const sortedSellers = [...sellers].sort((a, b) => b.score - a.score);
-    const totalScore = sellers.reduce((acc, s) => acc + s.score, 0);
+  if (filteredSellers.length > 0) {
+    const sortedSellers = [...filteredSellers].sort((a, b) => b.score - a.score);
+    const totalScore = filteredSellers.reduce((acc, s) => acc + s.score, 0);
     
     if (totalScore > 0) {
       result.distribution.top1Contribution = (sortedSellers[0].score / totalScore) * 100;
-      result.distribution.top2Contribution = sellers.length > 1 
+      result.distribution.top2Contribution = filteredSellers.length > 1 
         ? ((sortedSellers[0].score + sortedSellers[1].score) / totalScore) * 100 
         : result.distribution.top1Contribution;
     }
@@ -228,12 +238,12 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   }
 
   // 8. Maturity Index (Legacy Support)
-  if (sellers.length > 0) {
-    const above100 = sellers.filter(s => s.score >= 100).length;
-    const below80 = sellers.filter(s => s.score < 80).length;
+  if (filteredSellers.length > 0) {
+    const above100 = filteredSellers.filter(s => s.score >= 100).length;
+    const below80 = filteredSellers.filter(s => s.score < 80).length;
     
-    result.maturityIndex.above100Percent = (above100 / sellers.length) * 100;
-    result.maturityIndex.below80Percent = (below80 / sellers.length) * 100;
+    result.maturityIndex.above100Percent = (above100 / filteredSellers.length) * 100;
+    result.maturityIndex.below80Percent = (below80 / filteredSellers.length) * 100;
     
     if (result.maturityIndex.above100Percent >= 70) result.maturityIndex.classification = 'Alta Maturidade';
     else if (result.maturityIndex.above100Percent >= 40) result.maturityIndex.classification = 'Maturidade Moderada';
@@ -270,9 +280,82 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
     } else {
       result.projection.probability = 'Baixa';
     }
+
+    // 10. Future Trend Simulation (Layer 3)
+    const closedHistory = history
+      .filter(r => r.dados.store.period.status === 'fechado')
+      .slice(0, 2); // Get last 2 closed periods
+
+    if (closedHistory.length >= 1) {
+      const calculateWeighted = (pillar: 'mercantil' | 'cdc' | 'services') => {
+        const currentPace = result.projection[`${pillar}Projected` as keyof typeof result.projection] as number;
+        const h1 = closedHistory[0].dados.store.pillars[pillar].realized;
+        const h2 = closedHistory[1]?.dados.store.pillars[pillar].realized || h1; // Fallback to h1 if only 1 closed period
+        
+        // Weight: 40% Current Pace, 30% H1, 30% H2
+        return (currentPace * 0.4) + (h1 * 0.3) + (h2 * 0.3);
+      };
+
+      const mercantilSim = calculateWeighted('mercantil');
+      const cdcSim = calculateWeighted('cdc');
+      const servicesSim = calculateWeighted('services');
+
+      const mercantilICM = calculateICM(mercantilSim, store.pillars.mercantil.meta);
+      const cdcICM = calculateICM(cdcSim, store.pillars.cdc.meta);
+      const servicesICM = calculateICM(servicesSim, store.pillars.services.meta);
+
+      const projectedScore = calculateHealthIndex(mercantilICM, cdcICM, servicesICM);
+
+      result.trendSimulation = {
+        isAvailable: true,
+        mercantil: { projected: mercantilSim, gap: calculateGap(store.pillars.mercantil.meta, mercantilSim), icm: mercantilICM },
+        cdc: { projected: cdcSim, gap: calculateGap(store.pillars.cdc.meta, cdcSim), icm: cdcICM },
+        services: { projected: servicesSim, gap: calculateGap(store.pillars.services.meta, servicesSim), icm: servicesICM },
+        projectedScore,
+        projectedClassification: classifyHealth(projectedScore)
+      };
+    } else {
+      result.trendSimulation = { isAvailable: false } as any;
+    }
+
+    // 11. Strategic Context (Contextual Command Tool)
+    const mode = store.period.type === 'daily' ? 'DIARIO' : store.period.type === 'weekly' ? 'SEMANAL' : 'MENSAL';
+    const currentScore = store.healthIndex;
+    
+    const impacts = (['mercantil', 'cdc', 'services'] as const).map(p => {
+      const simulatedRealized = store.pillars[p].realized * 1.1;
+      const simulatedICM = calculateICM(simulatedRealized, store.pillars[p].meta);
+      
+      const icms = {
+        mercantil: store.pillars.mercantil.icm,
+        cdc: store.pillars.cdc.icm,
+        services: store.pillars.services.icm
+      };
+      icms[p] = simulatedICM;
+      
+      const simulatedScore = calculateHealthIndex(icms.mercantil, icms.cdc, icms.services);
+      
+      return {
+        pillar: p.toUpperCase(),
+        marginalScore: simulatedScore - currentScore,
+        collectiveValue: store.pillars[p].realized * 0.1,
+        simulatedScore,
+        simulatedClassification: classifyHealth(simulatedScore)
+      };
+    });
+
+    result.strategicContext = {
+      mode,
+      impacts
+    };
   } else {
     result.projection.isAvailable = false;
     result.projection.probability = 'Dados insuficientes';
+  }
+
+  // 11. Adjust classification for current period if elapsed is 0
+  if (store.period.businessDaysElapsed === 0 && store.period.status !== 'fechado') {
+    store.classification = 'Planejamento';
   }
 
   return result;

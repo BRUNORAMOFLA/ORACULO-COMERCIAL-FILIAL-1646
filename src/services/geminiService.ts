@@ -13,10 +13,12 @@ export async function generateExecutiveAnalysis(data: OracleData) {
     return 'Período não definido';
   };
 
-  const topSeller = [...data.sellers].sort((a, b) => b.score - a.score)[0];
-  const sellersBelow80 = data.sellers.filter(s => s.score < 80).length;
-  const sellersBelow100 = data.sellers.filter(s => s.score < 100).length;
-  const totalSellers = data.sellers.length;
+  const EXCLUDED_SELLER = 'Caio';
+  const filteredSellers = data.sellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
+  const topSeller = [...filteredSellers].sort((a, b) => b.score - a.score)[0];
+  const sellersBelow80 = filteredSellers.filter(s => s.score < 80).length;
+  const sellersBelow100 = filteredSellers.filter(s => s.score < 100).length;
+  const totalSellers = filteredSellers.length;
 
   const prompt = `
     Você é o Oráculo Comercial, um sistema de inteligência estratégica de alta performance.

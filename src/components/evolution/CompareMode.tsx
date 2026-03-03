@@ -82,14 +82,18 @@ export const CompareMode: React.FC<Props> = ({ history, currentData, periodMode 
     if (deltaScore >= 3) classification = 'Evolução';
     else if (deltaScore <= -3) classification = 'Regressão';
 
+    const EXCLUDED_SELLER = 'Caio';
+    const filteredSellersA = dataA.sellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
+    const filteredSellersB = dataB.sellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
+
     // Seller Comparison
-    const sellerComparisons: SellerComparison[] = dataB.sellers.map(sB => {
-      const sA = dataA.sellers.find(s => s.name === sB.name);
+    const sellerComparisons: SellerComparison[] = filteredSellersB.map(sB => {
+      const sA = filteredSellersA.find(s => s.name === sB.name);
       const bScore = sA ? calcPeriodScoreSeller(sA) : 0;
       const cScore = calcPeriodScoreSeller(sB);
       
-      const sortedA = [...dataA.sellers].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
-      const sortedB = [...dataB.sellers].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
+      const sortedA = [...filteredSellersA].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
+      const sortedB = [...filteredSellersB].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
       
       const bRank = sortedA.findIndex(s => s.name === sB.name) + 1;
       const cRank = sortedB.findIndex(s => s.name === sB.name) + 1;
@@ -150,7 +154,8 @@ export const CompareMode: React.FC<Props> = ({ history, currentData, periodMode 
       }
     });
 
-    const topSellersB = [...dataB.sellers].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
+    const filteredSellersB_Alerts = dataB.sellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
+    const topSellersB = [...filteredSellersB_Alerts].sort((a, b) => b.pillars.mercantil.realized - a.pillars.mercantil.realized);
     const top2B = (topSellersB[0]?.pillars.mercantil.realized || 0) + (topSellersB[1]?.pillars.mercantil.realized || 0);
     const top2ShareB = top2B / Math.max(dataB.store.pillars.mercantil.realized, 1);
 

@@ -115,6 +115,18 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
               <option value="custom">Intervalo Personalizado</option>
             </select>
           </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase text-zinc-500">Status do Período</label>
+            <select 
+              className="w-full p-2 border rounded-lg text-sm bg-zinc-50 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+              value={data.store.period.status || 'parcial'}
+              onChange={e => updateStorePeriod('status', e.target.value)}
+            >
+              <option value="parcial">Parcial (Ativo)</option>
+              <option value="projecao">Em Projeção</option>
+              <option value="fechado">Fechado (Consolidado)</option>
+            </select>
+          </div>
 
           {data.store.period.type === 'daily' && (
             <div className="space-y-1">

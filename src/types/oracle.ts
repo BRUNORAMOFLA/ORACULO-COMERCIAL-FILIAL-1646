@@ -1,8 +1,10 @@
 
 export type PeriodType = 'daily' | 'weekly' | 'monthly' | 'custom';
+export type PeriodStatus = 'fechado' | 'parcial' | 'projecao';
 
 export interface Period {
   type: PeriodType;
+  status: PeriodStatus;
   label: string;
   date?: string;
   startDate?: string;
@@ -87,6 +89,8 @@ export interface Seller {
   };
   score: number;
   classification: string;
+  profile?: string;
+  balanceIndex?: number;
   isTripleCrown: boolean;
   intelligence?: {
     trend: TrendAnalysis;
@@ -162,12 +166,36 @@ export interface TrendAnalysis {
   services: string;
 }
 
+export interface TrendSimulation {
+  mercantil: { projected: number; gap: number; icm: number };
+  cdc: { projected: number; gap: number; icm: number };
+  services: { projected: number; gap: number; icm: number };
+  projectedScore: number;
+  projectedClassification: string;
+  isAvailable: boolean;
+}
+
+export interface StrategicImpact {
+  pillar: string;
+  marginalScore: number;
+  collectiveValue: number;
+  simulatedScore: number;
+  simulatedClassification: string;
+}
+
+export interface StrategicContext {
+  mode: 'DIARIO' | 'SEMANAL' | 'MENSAL';
+  impacts: StrategicImpact[];
+}
+
 export interface OracleData {
   store: Store;
   sellers: Seller[];
   distribution: Distribution;
   maturityIndex: MaturityIndex;
   projection: Projection;
+  trendSimulation?: TrendSimulation;
+  strategicContext?: StrategicContext;
   simulator: Simulator;
   history: any[];
   generatedAt: string;

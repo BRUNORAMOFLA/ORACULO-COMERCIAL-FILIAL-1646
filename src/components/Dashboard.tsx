@@ -36,8 +36,11 @@ import {
 import { formatNumberBR, formatCurrencyBR } from '../utils/formatters';
 import { FeedbackModal } from './FeedbackModal';
 import { TripleCrownSellerItem } from './TripleCrownSellerItem';
-import { Seller, OracleResult } from '../types/oracle';
+import { Seller, OracleResult, HistoryRecord } from '../types/oracle';
 import { IntelligenceRadar } from './IntelligenceRadar';
+import { StrategicCommandPanel } from './StrategicCommandPanel';
+import { StrategicPriorityBlock } from './StrategicPriorityBlock';
+import { CollectiveImpactBlock } from './CollectiveImpactBlock';
 import { 
   exportToExcel, 
   exportToPDF, 
@@ -50,20 +53,27 @@ import {
   FileText, 
   Image as ImageIcon, 
   MessageSquare, 
-  Share2 
+  Share2,
+  History as HistoryIcon,
+  Clock,
+  Sparkles
 } from 'lucide-react';
 
 interface Props {
   data: OracleResult;
+  history: HistoryRecord[];
 }
 
-export const Dashboard: React.FC<Props> = ({ data }) => {
+export const Dashboard: React.FC<Props> = ({ data, history }) => {
   const [activeTab, setActiveTab] = useState<'crown' | 'mvp'>('crown');
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [selectedPillar, setSelectedPillar] = useState<'mercantil' | 'cdc' | 'services' | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+
+  const EXCLUDED_SELLER = 'Caio';
+  const filteredSellers = data.sellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
 
   const periodKey = data.store.period.label.replace(/\s+/g, '_');
   const mvpPhoto = usePhotoStorage(`mvp_photo_${periodKey}`);
@@ -97,8 +107,8 @@ export const Dashboard: React.FC<Props> = ({ data }) => {
     return 'text-red-600';
   };
 
-  const tripleCrownSellers = data.sellers.filter(s => s.isTripleCrown);
-  const mvpSeller = data.sellers.find(s => s.id === data.mvpId);
+  const tripleCrownSellers = filteredSellers.filter(s => s.isTripleCrown);
+  const mvpSeller = filteredSellers.find(s => s.id === data.mvpId);
 
   const filename = `Oraculo_Comercial_${data.store.name}_${data.store.period.label.replace(/\//g, '-')}`;
 
@@ -128,7 +138,7 @@ Entrega: ${percent.toFixed(1)}%.`;
 
   const getDependencyTooltip = () => {
     const { top1Contribution } = data.distribution;
-    const topSeller = data.sellers.sort((a, b) => b.score - a.score)[0];
+    const topSeller = filteredSellers.sort((a, b) => b.score - a.score)[0];
     return `Dependência calculada com base na concentração de resultado.
 Maior concentração em: ${topSeller?.name || 'N/A'}
 Participação: ${top1Contribution.toFixed(1)}% do total.`;
@@ -158,12 +168,32 @@ Desvio entre melhor e pior vendedor: ${dispersion.toFixed(1)} pontos.
 Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
   };
 
+  const isClosed = data.store.period.status === 'fechado';
+  const isProjection = data.store.period.status === 'projecao';
+  const isPartial = data.store.period.status === 'parcial';
+
+  const closedHistory = history
+    .filter(r => r.dados.store.period.status === 'fechado')
+    .sort((a, b) => {
+      const pa = a.dados.store.period;
+      const pb = b.dados.store.period;
+      const dateA = pa.startDate || pa.date || `${pa.year}-${String(pa.month).padStart(2, '0')}-01`;
+      const dateB = pb.startDate || pb.date || `${pb.year}-${String(pb.month).padStart(2, '0')}-01`;
+      return dateB.localeCompare(dateA); // Newest first for list
+    });
+
   return (
     <div className="space-y-8" id="dashboard-content">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-export">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Activity size={20} className="text-primary" />
           <h2 className="text-lg font-bold text-primary uppercase tracking-tight">Painel de Inteligência Comercial</h2>
+          <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+            isClosed ? 'bg-emerald-100 text-emerald-700' : 
+            isProjection ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+          }`}>
+            {isClosed ? 'Consolidado' : isProjection ? 'Em Projeção' : 'Período Ativo'}
+          </div>
         </div>
         
         <div className="relative">
@@ -216,7 +246,185 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
       </div>
 
       <IntelligenceRadar data={data} />
-      
+
+      {/* LAYER 1: HISTÓRICO CONSOLIDADO */}
+      {closedHistory.length > 0 && (
+        <section className="bg-white p-6 rounded-3xl border border-primary/10 shadow-sm space-y-6">
+          <div className="flex items-center gap-2 border-b pb-4">
+            <HistoryIcon size={18} className="text-zinc-400" />
+            <h3 className="text-xs font-black uppercase tracking-widest text-zinc-900">1. Histórico Consolidado (Meses Fechados)</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {closedHistory.slice(0, 4).map((record, idx) => (
+              <div key={record.id} className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-2">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase block">{record.dados.store.period.label}</span>
+                <div className="flex justify-between items-end">
+                  <div>
+                    <span className="text-xl font-black text-primary">{record.dados.store.healthIndex.toFixed(1)}</span>
+                    <span className="text-[8px] font-bold text-zinc-400 ml-1">SCORE</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-bold text-zinc-900">{record.dados.distribution.top1Contribution.toFixed(1)}%</span>
+                    <span className="text-[8px] font-bold text-zinc-400 block uppercase">DEP.</span>
+                  </div>
+                </div>
+                {idx < closedHistory.length - 1 && (
+                  <div className="pt-2 border-t border-zinc-200 flex items-center gap-1">
+                    {record.dados.store.healthIndex > closedHistory[idx+1].dados.store.healthIndex ? (
+                      <TrendingUp size={12} className="text-emerald-500" />
+                    ) : (
+                      <TrendingDown size={12} className="text-accent" />
+                    )}
+                    <span className={`text-[9px] font-bold ${record.dados.store.healthIndex > closedHistory[idx+1].dados.store.healthIndex ? 'text-emerald-600' : 'text-accent'}`}>
+                      {Math.abs(record.dados.store.healthIndex - closedHistory[idx+1].dados.store.healthIndex).toFixed(1)} pts vs anterior
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* LAYER 2: PERÍODO ATUAL */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Clock size={18} className="text-primary" />
+          <h3 className="text-xs font-black uppercase tracking-widest text-zinc-900">2. Período Atual (Execução em Tempo Real)</h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Main Stats Card */}
+          <div className="md:col-span-2 bg-white p-6 rounded-3xl border border-primary/10 shadow-sm space-y-6">
+            <div className="flex justify-between items-center">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase block">Status do Ciclo</span>
+                <h4 className="text-lg font-black text-primary">{data.store.period.label}</h4>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase block">Dias Decorridos</span>
+                <span className="text-lg font-black text-primary">{data.store.period.businessDaysElapsed} / {data.store.period.businessDaysTotal}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {(['mercantil', 'cdc', 'services'] as const).map(p => {
+                const remainingDays = data.store.period.businessDaysTotal - data.store.period.businessDaysElapsed;
+                const neededDaily = remainingDays > 0 ? Math.max(0, (data.store.pillars[p].meta - data.store.pillars[p].realized) / remainingDays) : 0;
+                
+                return (
+                  <div key={p} className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black uppercase text-zinc-400">{p}</span>
+                      <span className="text-[10px] font-black text-primary">{data.store.pillars[p].icm.toFixed(1)}%</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase block">Realizado</span>
+                      <span className="text-sm font-black text-zinc-900">{formatCurrencyBR(data.store.pillars[p].realized)}</span>
+                    </div>
+                    <div className="pt-2 border-t border-zinc-200">
+                      <span className="text-[8px] font-bold text-zinc-400 uppercase block">Média Necessária</span>
+                      <span className="text-[10px] font-black text-accent">{formatCurrencyBR(neededDaily)} / DIA</span>
+                    </div>
+                    <div className="h-1 bg-zinc-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary transition-all duration-1000"
+                        style={{ width: `${Math.min(100, data.store.pillars[p].icm)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Projection Card */}
+          <div className="bg-primary text-white p-6 rounded-3xl shadow-xl shadow-primary/20 space-y-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <TrendingUp size={80} />
+            </div>
+            <div className="relative z-10">
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/50 block mb-2">
+                Projeção Linear {data.store.period.type === 'daily' ? 'do Dia' : data.store.period.type === 'weekly' ? 'da Semana' : 'do Mês'}
+              </span>
+              <div className="flex items-baseline gap-2 mb-4">
+                <span className="text-4xl font-black">{data.projection.probability}</span>
+                <span className="text-[10px] font-bold uppercase text-white/70">Probabilidade</span>
+              </div>
+              
+              <div className="space-y-4">
+                {(['mercantil', 'cdc', 'services'] as const).map(p => (
+                  <div key={p} className="flex justify-between items-center border-b border-white/10 pb-2">
+                    <span className="text-[10px] font-bold uppercase text-white/60">{p}</span>
+                    <div className="text-right">
+                      <span className="text-xs font-black block">{formatCurrencyBR(data.projection[`${p}Projected` as keyof typeof data.projection] as number)}</span>
+                      <span className={`text-[8px] font-bold uppercase ${data.projection[`${p}Gap` as keyof typeof data.projection] as number <= 0 ? 'text-emerald-400' : 'text-accent'}`}>
+                        {data.projection[`${p}Gap` as keyof typeof data.projection] as number <= 0 ? 'Meta Atingida' : `Faltam ${formatCurrencyBR(data.projection[`${p}Gap` as keyof typeof data.projection] as number)}`}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* STRATEGIC CONTEXT BLOCKS */}
+      {data.strategicContext && (
+        <StrategicCommandPanel context={data.strategicContext} />
+      )}
+
+      {/* LAYER 3: TENDÊNCIA FUTURA */}
+      {data.trendSimulation?.isAvailable && data.store.period.type === 'monthly' && (
+        <section className="bg-zinc-900 p-8 rounded-[2.5rem] text-white space-y-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5">
+            <Target size={200} />
+          </div>
+          
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Sparkles size={20} className="text-accent" />
+                <h3 className="text-xs font-black uppercase tracking-widest text-accent">3. Tendência Futura (Simulação Estratégica)</h3>
+              </div>
+              <p className="text-white/60 text-xs max-w-md">Simulação de fechamento ponderada: 40% ritmo atual + 60% média histórica dos últimos 2 períodos fechados.</p>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-1">Score Projetado</span>
+              <div className="flex items-baseline gap-3">
+                <span className="text-5xl font-black text-white">{data.trendSimulation.projectedScore.toFixed(1)}</span>
+                <span className={`text-xs font-black uppercase px-3 py-1 rounded-full ${
+                  data.trendSimulation.projectedScore >= 80 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-accent/20 text-accent'
+                }`}>
+                  {data.trendSimulation.projectedClassification}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+            {(['mercantil', 'cdc', 'services'] as const).map(p => (
+              <div key={p} className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black uppercase text-white/40">{p}</span>
+                  <span className="text-lg font-black text-white">{data.trendSimulation![p].icm.toFixed(1)}%</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-white/30 uppercase block">Entrega Projetada</span>
+                  <span className="text-sm font-bold text-white">{formatCurrencyBR(data.trendSimulation![p].projected)}</span>
+                </div>
+                <div className={`text-[10px] font-bold uppercase p-2 rounded-lg text-center ${
+                  data.trendSimulation![p].gap <= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-accent/10 text-accent'
+                }`}>
+                  {data.trendSimulation![p].gap <= 0 ? 'Meta Superada' : `Gap de ${formatCurrencyBR(data.trendSimulation![p].gap)}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Indicator Deep Dive */}
       <div className="bg-white p-6 rounded-3xl border border-primary/10 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -273,7 +481,7 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
               <div className="md:col-span-2 space-y-4">
                 <span className="text-[10px] font-black uppercase text-zinc-400">Top 5 Vendedores em {selectedPillar}</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {data.sellers
+                  {filteredSellers
                     .sort((a, b) => b.pillars[selectedPillar].realized - a.pillars[selectedPillar].realized)
                     .slice(0, 5)
                     .map((s, idx) => (
@@ -298,252 +506,6 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
           )}
         </AnimatePresence>
       </div>
-
-      {/* Top Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm relative">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-[10px] font-bold uppercase text-zinc-400">Saúde da Unidade</span>
-            <button 
-              onClick={() => setActiveTooltip(activeTooltip === 'health' ? null : 'health')}
-              className="text-zinc-300 hover:text-primary transition-colors"
-            >
-              <Info size={14} />
-            </button>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-primary">{data.store.healthIndex.toFixed(1)}%</span>
-            <span className={`text-[9px] font-bold uppercase ${getHealthColor(data.store.classification)}`}>{data.store.classification}</span>
-          </div>
-          <AnimatePresence>
-            {activeTooltip === 'health' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed whitespace-pre-line"
-                ref={tooltipRef}
-              >
-                {getHealthTooltip()}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm relative">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-[10px] font-bold uppercase text-zinc-400">Execução Operacional</span>
-            <button 
-              onClick={() => setActiveTooltip(activeTooltip === 'operational' ? null : 'operational')}
-              className="text-zinc-300 hover:text-primary transition-colors"
-            >
-              <Info size={14} />
-            </button>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-primary">
-              {((data.store.pillars.operational.cards.achievement + data.store.pillars.operational.combos.achievement) / 2).toFixed(0)}%
-            </span>
-            <span className="text-[9px] font-bold uppercase text-zinc-500">Cartões/Combos</span>
-          </div>
-          <AnimatePresence>
-            {activeTooltip === 'operational' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed whitespace-pre-line"
-                ref={tooltipRef}
-              >
-                {getOperationalTooltip()}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm relative">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-[10px] font-bold uppercase text-zinc-400">Nível de Dependência</span>
-            <button 
-              onClick={() => setActiveTooltip(activeTooltip === 'dependency' ? null : 'dependency')}
-              className="text-zinc-300 hover:text-primary transition-colors"
-            >
-              <Info size={14} />
-            </button>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-primary">{data.distribution.top1Contribution.toFixed(1)}%</span>
-            <span className="text-[9px] font-bold uppercase text-zinc-500">{data.distribution.dependencyLevel}</span>
-          </div>
-          <AnimatePresence>
-            {activeTooltip === 'dependency' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed whitespace-pre-line"
-                ref={tooltipRef}
-              >
-                {getDependencyTooltip()}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm relative">
-          <div className="flex justify-between items-start mb-2">
-            <span className="text-[10px] font-bold uppercase text-zinc-400">Projeção de Fechamento</span>
-            <button 
-              onClick={() => setActiveTooltip(activeTooltip === 'projection' ? null : 'projection')}
-              className="text-zinc-300 hover:text-primary transition-colors"
-            >
-              <Info size={14} />
-            </button>
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-primary">{data.projection.probability}</span>
-              <span className="text-[9px] font-bold uppercase text-zinc-500">Tendência</span>
-            </div>
-            <p className="text-[8px] font-bold text-zinc-400 uppercase">Base: média diária × dias úteis restantes</p>
-          </div>
-          <AnimatePresence>
-            {activeTooltip === 'projection' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed whitespace-pre-line"
-                ref={tooltipRef}
-              >
-                {getProjectionTooltip()}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-primary text-white p-4 rounded-2xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold uppercase text-white/50 block">Período de Análise</span>
-            <span className="text-sm font-bold">{data.store.period.label || "Período não definido"}</span>
-          </div>
-          <Calendar size={20} className="text-accent" />
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm flex items-center justify-between relative">
-          <div>
-            <span className="text-[10px] font-bold uppercase text-zinc-400 block">Maturidade do Time</span>
-            <span className="text-sm font-bold text-primary">{data.maturityIndex.classification}</span>
-          </div>
-          <button 
-            onClick={() => setActiveTooltip(activeTooltip === 'maturity' ? null : 'maturity')}
-            className="text-zinc-300 hover:text-primary transition-colors"
-          >
-            <Info size={20} />
-          </button>
-          <AnimatePresence>
-            {activeTooltip === 'maturity' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="absolute left-4 right-4 top-full mt-1 p-3 bg-white rounded-xl shadow-2xl border border-primary/10 z-50 text-[10px] font-medium text-zinc-600 leading-relaxed whitespace-pre-line"
-                ref={tooltipRef}
-              >
-                {getMaturityTooltip()}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Projection Details */}
-      {data.projection.isAvailable ? (
-        <div className="bg-white p-6 rounded-2xl border border-black/5 shadow-sm space-y-6">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <TrendingUp size={18} className="text-primary" />
-              <h3 className="text-xs font-bold uppercase text-zinc-900">Detalhamento da Projeção Estratégica</h3>
-            </div>
-            <div className="flex items-center gap-4 text-[10px] font-bold uppercase text-zinc-400">
-              <span>Dias Totais: {data.store.period.businessDaysTotal}</span>
-              <span>Decorridos: {data.store.period.businessDaysElapsed}</span>
-              <span className="text-primary">Restantes: {data.store.period.businessDaysTotal - data.store.period.businessDaysElapsed}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { id: 'mercantil', label: 'Mercantil', proj: data.projection.mercantilProjected, gap: data.projection.mercantilGap, meta: data.store.pillars.mercantil.meta, realized: data.store.pillars.mercantil.realized },
-              { id: 'cdc', label: 'CDC', proj: data.projection.cdcProjected, gap: data.projection.cdcGap, meta: data.store.pillars.cdc.meta, realized: data.store.pillars.cdc.realized },
-              { id: 'services', label: 'Serviços', proj: data.projection.servicesProjected, gap: data.projection.servicesGap, meta: data.store.pillars.services.meta, realized: data.store.pillars.services.realized },
-            ].map((p) => {
-              const remainingDays = data.store.period.businessDaysTotal - data.store.period.businessDaysElapsed;
-              const isPeriodEnded = remainingDays <= 0;
-              const neededDaily = !isPeriodEnded ? (p.meta - p.realized) / remainingDays : 0;
-              const currentDaily = data.store.period.businessDaysElapsed > 0 ? p.realized / data.store.period.businessDaysElapsed : 0;
-              const isMetaAchieved = p.realized >= p.meta;
-
-              return (
-                <div key={p.id} className="p-5 bg-zinc-50 rounded-2xl space-y-4 border border-zinc-100">
-                  <div className="flex justify-between items-center border-b border-zinc-200 pb-2">
-                    <span className="text-[10px] font-black uppercase text-primary">{p.label}</span>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${p.proj >= p.meta ? 'bg-emerald-100 text-emerald-700' : 'bg-accent/10 text-accent'}`}>
-                      {isPeriodEnded ? (isMetaAchieved ? 'META BATIDA' : 'META NÃO ATINGIDA') : `${((p.proj / (p.meta || 1)) * 100).toFixed(0)}% PROJETADO`}
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase block">
-                      {isPeriodEnded ? 'Status Final do Pilar' : 'Média Diária Necessária'}
-                    </span>
-                    <div className="flex items-baseline gap-2">
-                      <span className={`text-xl font-black ${isPeriodEnded ? (isMetaAchieved ? 'text-emerald-600' : 'text-accent') : (neededDaily > currentDaily ? 'text-accent' : 'text-emerald-600')}`}>
-                        {isPeriodEnded ? (isMetaAchieved ? 'SUCESSO' : 'REVISAR') : formatCurrencyBR(Math.max(0, neededDaily))}
-                      </span>
-                      {!isPeriodEnded && <span className="text-[8px] font-bold text-zinc-400">/ DIA</span>}
-                    </div>
-                    <p className="text-[9px] text-zinc-500 italic">
-                      {isPeriodEnded 
-                        ? (isMetaAchieved ? "Excelente! A meta foi superada neste ciclo." : `Faltou ${formatCurrencyBR(p.meta - p.realized)} para atingir o objetivo.`)
-                        : (neededDaily > currentDaily 
-                          ? `Atenção: Precisa vender ${formatCurrencyBR(neededDaily - currentDaily)} a mais por dia que a média atual.`
-                          : "Ritmo atual é suficiente para bater a meta.")}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-100">
-                    <div>
-                      <span className="text-[9px] font-bold text-zinc-400 uppercase block">Projetado</span>
-                      <span className="text-sm font-black text-zinc-900">{formatCurrencyBR(p.proj)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] font-bold text-zinc-400 uppercase block">Gap Final</span>
-                      <span className={`text-sm font-black ${p.gap <= 0 ? 'text-emerald-600' : 'text-accent'}`}>
-                        {p.gap <= 0 ? 'ATINGIDA' : formatCurrencyBR(p.gap)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex items-start gap-3">
-            <Info size={16} className="text-primary mt-0.5" />
-            <p className="text-[10px] text-zinc-600 leading-relaxed">
-              <strong className="text-primary uppercase">Como usar para decisão:</strong> A projeção utiliza sua <strong>Média Diária Atual</strong> (Vendas ÷ Dias Decorridos) e a projeta para os <strong>Dias Restantes</strong>. Se a "Média Necessária" for maior que a sua média atual, você precisa de um plano de ação imediato para aumentar o ritmo de vendas, caso contrário, o GAP final se confirmará.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-amber-50 p-8 rounded-2xl border border-dashed border-amber-200 text-center space-y-2">
-          <AlertCircle size={24} className="text-amber-500 mx-auto" />
-          <p className="text-xs font-bold text-amber-700 uppercase">Projeção Indisponível</p>
-          <p className="text-[10px] text-amber-600 max-w-xs mx-auto">Vá na aba ENTRADA e informe os "Dias Úteis Totais" e "Dias Decorridos" para habilitar a inteligência preditiva.</p>
-        </div>
-      )}
 
       {/* Recognition Section */}
       <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
@@ -817,7 +779,7 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
-              {data.sellers.sort((a, b) => b.score - a.score).map((s, idx) => (
+              {filteredSellers.sort((a, b) => b.score - a.score).map((s, idx) => (
                 <tr key={s.id} className="group hover:bg-zinc-50 transition-colors">
                   <td className="py-4 px-2 text-xs font-bold text-zinc-400">#{idx + 1}</td>
                   <td className="py-4 px-2">
@@ -841,14 +803,26 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
                   </td>
                   <td className="py-4 px-2 text-right">
                     <div className="flex flex-col items-end gap-1">
-                      <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${
-                        s.classification === 'Elite' ? 'bg-emerald-50 text-emerald-700' :
-                        s.classification === 'Alto Contribuidor' ? 'bg-primary/10 text-primary' :
-                        s.classification === 'Parcial' ? 'bg-amber-50 text-amber-700' :
-                        'bg-accent/10 text-accent'
-                      }`}>
-                        {s.classification}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${
+                          s.classification === 'Elite' ? 'bg-emerald-50 text-emerald-700' :
+                          s.classification === 'Alto Contribuidor' ? 'bg-primary/10 text-primary' :
+                          s.classification === 'Parcial' ? 'bg-amber-50 text-amber-700' :
+                          'bg-accent/10 text-accent'
+                        }`}>
+                          {s.classification}
+                        </span>
+                        {s.profile && (
+                          <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded border ${
+                            s.profile.includes('DOMINANTE EQUILIBRADO') ? 'border-emerald-200 text-emerald-600 bg-emerald-50/50' :
+                            s.profile.includes('DOMINANTE DESBALANCEADO') ? 'border-amber-200 text-amber-600 bg-amber-50/50' :
+                            s.profile.includes('VOLUME FRÁGIL') ? 'border-accent/20 text-accent bg-accent/5' :
+                            'border-zinc-200 text-zinc-500 bg-zinc-50'
+                          }`}>
+                            {s.profile}
+                          </span>
+                        )}
+                      </div>
                       {s.intelligence?.riskAlert && (
                         <div className="flex items-center gap-1 text-[8px] font-bold text-accent uppercase">
                           <ShieldAlert size={10} /> Risco
@@ -861,6 +835,9 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
             </tbody>
           </table>
         </div>
+
+        <StrategicPriorityBlock sellers={data.sellers} store={data.store} />
+        <CollectiveImpactBlock sellers={data.sellers} store={data.store} />
       </div>
 
       <AnimatePresence>

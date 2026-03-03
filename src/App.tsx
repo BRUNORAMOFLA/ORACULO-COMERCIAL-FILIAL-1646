@@ -91,6 +91,7 @@ const INITIAL_STATE: OracleData = {
     name: 'Loja 1646',
     period: {
       type: 'daily',
+      status: 'parcial',
       label: '',
       date: new Date().toISOString().split('T')[0],
       startDate: new Date().toISOString().split('T')[0],
@@ -487,7 +488,7 @@ export default function App() {
                 </div>
               </div>
 
-              <Dashboard data={processedData} />
+              <Dashboard data={processedData} history={currentHistory} />
               
               <AISummary data={processedData} />
             </motion.div>
