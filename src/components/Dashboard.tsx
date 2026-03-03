@@ -480,30 +480,36 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
               { id: 'services', label: 'Serviços', proj: data.projection.servicesProjected, gap: data.projection.servicesGap, meta: data.store.pillars.services.meta, realized: data.store.pillars.services.realized },
             ].map((p) => {
               const remainingDays = data.store.period.businessDaysTotal - data.store.period.businessDaysElapsed;
-              const neededDaily = remainingDays > 0 ? (p.meta - p.realized) / remainingDays : 0;
+              const isPeriodEnded = remainingDays <= 0;
+              const neededDaily = !isPeriodEnded ? (p.meta - p.realized) / remainingDays : 0;
               const currentDaily = data.store.period.businessDaysElapsed > 0 ? p.realized / data.store.period.businessDaysElapsed : 0;
+              const isMetaAchieved = p.realized >= p.meta;
 
               return (
                 <div key={p.id} className="p-5 bg-zinc-50 rounded-2xl space-y-4 border border-zinc-100">
                   <div className="flex justify-between items-center border-b border-zinc-200 pb-2">
                     <span className="text-[10px] font-black uppercase text-primary">{p.label}</span>
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${p.proj >= p.meta ? 'bg-emerald-100 text-emerald-700' : 'bg-accent/10 text-accent'}`}>
-                      {((p.proj / (p.meta || 1)) * 100).toFixed(0)}% PROJETADO
+                      {isPeriodEnded ? (isMetaAchieved ? 'META BATIDA' : 'META NÃO ATINGIDA') : `${((p.proj / (p.meta || 1)) * 100).toFixed(0)}% PROJETADO`}
                     </span>
                   </div>
                   
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase block">Média Diária Necessária</span>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase block">
+                      {isPeriodEnded ? 'Status Final do Pilar' : 'Média Diária Necessária'}
+                    </span>
                     <div className="flex items-baseline gap-2">
-                      <span className={`text-xl font-black ${neededDaily > currentDaily ? 'text-accent' : 'text-emerald-600'}`}>
-                        {formatCurrencyBR(Math.max(0, neededDaily))}
+                      <span className={`text-xl font-black ${isPeriodEnded ? (isMetaAchieved ? 'text-emerald-600' : 'text-accent') : (neededDaily > currentDaily ? 'text-accent' : 'text-emerald-600')}`}>
+                        {isPeriodEnded ? (isMetaAchieved ? 'SUCESSO' : 'REVISAR') : formatCurrencyBR(Math.max(0, neededDaily))}
                       </span>
-                      <span className="text-[8px] font-bold text-zinc-400">/ DIA</span>
+                      {!isPeriodEnded && <span className="text-[8px] font-bold text-zinc-400">/ DIA</span>}
                     </div>
                     <p className="text-[9px] text-zinc-500 italic">
-                      {neededDaily > currentDaily 
-                        ? `Atenção: Precisa vender ${formatCurrencyBR(neededDaily - currentDaily)} a mais por dia que a média atual.`
-                        : "Ritmo atual é suficiente para bater a meta."}
+                      {isPeriodEnded 
+                        ? (isMetaAchieved ? "Excelente! A meta foi superada neste ciclo." : `Faltou ${formatCurrencyBR(p.meta - p.realized)} para atingir o objetivo.`)
+                        : (neededDaily > currentDaily 
+                          ? `Atenção: Precisa vender ${formatCurrencyBR(neededDaily - currentDaily)} a mais por dia que a média atual.`
+                          : "Ritmo atual é suficiente para bater a meta.")}
                     </p>
                   </div>
 

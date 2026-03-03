@@ -89,6 +89,8 @@ export const HistoryMode: React.FC<Props> = ({ history, currentData, periodMode 
       const dependency = (top2 / Math.max(mercantilReal, 1)) * 100;
 
       const label = generatePeriodLabel(store.period);
+      const p = store.period;
+      const sortKey = p.startDate || p.date || `${p.year}-${String(p.month).padStart(2, '0')}-01`;
 
       return {
         periodId: r.id,
@@ -103,7 +105,8 @@ export const HistoryMode: React.FC<Props> = ({ history, currentData, periodMode 
         dependency,
         mercantilICM: calcICM(mercantilReal, mercantilMeta),
         cdcICM: calcICM(store.pillars.cdc.realized, store.pillars.cdc.meta),
-        servicesICM: calcICM(store.pillars.services.realized, store.pillars.services.meta)
+        servicesICM: calcICM(store.pillars.services.realized, store.pillars.services.meta),
+        sortKey
       };
     });
     
@@ -142,11 +145,14 @@ export const HistoryMode: React.FC<Props> = ({ history, currentData, periodMode 
         dependency: currentDependency,
         mercantilICM: calcICM(currentMercantilReal, currentStore.pillars.mercantil.meta),
         cdcICM: calcICM(currentStore.pillars.cdc.realized, currentStore.pillars.cdc.meta),
-        servicesICM: calcICM(currentStore.pillars.services.realized, currentStore.pillars.services.meta)
+        servicesICM: calcICM(currentStore.pillars.services.realized, currentStore.pillars.services.meta),
+        // Add a sort key for final sorting
+        sortKey: currentPeriod.startDate || currentPeriod.date || `${currentPeriod.year}-${String(currentPeriod.month).padStart(2, '0')}-01`
       });
     }
 
-    return points;
+    // Final sort to ensure ascending order (oldest to newest)
+    return points.sort((a, b) => (a.sortKey || '').localeCompare(b.sortKey || ''));
   }, [history, currentData, periodMode]);
 
   const trend = useMemo(() => {

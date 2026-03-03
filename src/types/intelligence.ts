@@ -69,4 +69,5 @@ export interface HistoryPoint {
   mercantilICM?: number;
   cdcICM?: number;
   servicesICM?: number;
+  sortKey?: string;
 }
