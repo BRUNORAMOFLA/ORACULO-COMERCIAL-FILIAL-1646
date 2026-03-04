@@ -186,7 +186,7 @@ export const HistoryMode: React.FC<Props> = ({ history, currentData, periodMode 
 Analise o histórico global da unidade (${historyPoints.length} ciclos):
 - Tendência de Score: ${trend}
 - Tendência de Dependência: ${depTrend}
-- Médias Históricas (ICM): Mercantil ${avgMercICM.toFixed(1)}%, CDC ${avgCDCICM.toFixed(1)}%, Services ${avgServICM.toFixed(1)}%
+- Médias Históricas (ICM): Mercantil ${avgMercICM.toFixed(1)}%, CDC ${avgCDCICM.toFixed(1)}%, Serviços ${avgServICM.toFixed(1)}%
 - Lista de Ciclos (Score / Dependência):
 ${historyPoints.map(p => `- ${p.label}: Score ${p.score.toFixed(1)} / Dep ${p.dependency.toFixed(1)}%`).join('\n')}
 

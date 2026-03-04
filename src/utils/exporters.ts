@@ -64,39 +64,69 @@ export const exportToPDF = async (elementId: string, filename: string) => {
   const element = document.getElementById(elementId);
   if (!element) return;
 
-  const dataUrl = await toPng(element, { 
-    backgroundColor: '#f8f9fa', 
-    quality: 0.95,
-    filter: (node: any) => {
-      if (node.classList && node.classList.contains('no-export')) return false;
-      return true;
-    }
-  });
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const imgProps = pdf.getImageProperties(dataUrl);
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-  
-  pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
-  pdf.save(`${filename}.pdf`);
+  // Clone the element to freeze context during capture
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.style.position = 'fixed';
+  clone.style.top = '-9999px';
+  clone.style.left = '-9999px';
+  clone.style.width = element.offsetWidth + 'px';
+  clone.style.backgroundColor = '#f8f9fa';
+  document.body.appendChild(clone);
+
+  try {
+    const dataUrl = await toPng(clone, { 
+      backgroundColor: '#f8f9fa', 
+      quality: 0.95,
+      filter: (node: any) => {
+        if (node.classList && node.classList.contains('no-export')) return false;
+        return true;
+      }
+    });
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgProps = pdf.getImageProperties(dataUrl);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    
+    pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`${filename}.pdf`);
+  } catch (error) {
+    console.error('Erro ao exportar PDF:', error);
+  } finally {
+    document.body.removeChild(clone);
+  }
 };
 
 export const exportToPNG = async (elementId: string, filename: string) => {
   const element = document.getElementById(elementId);
   if (!element) return;
 
-  const dataUrl = await toPng(element, { 
-    backgroundColor: '#f8f9fa', 
-    quality: 1,
-    filter: (node: any) => {
-      if (node.classList && node.classList.contains('no-export')) return false;
-      return true;
-    }
-  });
-  const link = document.createElement('a');
-  link.download = `${filename}.png`;
-  link.href = dataUrl;
-  link.click();
+  // Clone the element to freeze context during capture
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.style.position = 'fixed';
+  clone.style.top = '-9999px';
+  clone.style.left = '-9999px';
+  clone.style.width = element.offsetWidth + 'px';
+  clone.style.backgroundColor = '#f8f9fa';
+  document.body.appendChild(clone);
+
+  try {
+    const dataUrl = await toPng(clone, { 
+      backgroundColor: '#f8f9fa', 
+      quality: 1,
+      filter: (node: any) => {
+        if (node.classList && node.classList.contains('no-export')) return false;
+        return true;
+      }
+    });
+    const link = document.createElement('a');
+    link.download = `${filename}.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (error) {
+    console.error('Erro ao exportar PNG:', error);
+  } finally {
+    document.body.removeChild(clone);
+  }
 };
 
 export const generateWhatsAppText = (data: OracleResult) => {

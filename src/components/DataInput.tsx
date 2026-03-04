@@ -11,7 +11,7 @@ interface Props {
 }
 
 export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeRequest }) => {
-  const updateStorePillar = (pillar: 'mercantil' | 'cdc' | 'services', field: string, value: number) => {
+  const updateStorePillar = (pillar: 'mercantil' | 'cdc' | 'serviços', field: string, value: number) => {
     const newData: OracleData = JSON.parse(JSON.stringify(data));
     if (field.includes('.')) {
       const [sub, subField] = field.split('.');
@@ -41,7 +41,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
       pillars: {
         mercantil: { meta: 0, realized: 0, icm: 0, gap: 0 },
         cdc: { meta: 0, realized: 0, icm: 0, gap: 0 },
-        services: { meta: 0, realized: 0, icm: 0, gap: 0 },
+        serviços: { meta: 0, realized: 0, icm: 0, gap: 0 },
       },
       operational: {
         cards: { meta: 0, realized: 0 },
@@ -244,7 +244,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
                 </div>
               )}
 
-              {p === 'services' && (
+              {p === 'serviços' && (
                 <div className="pt-2 border-t border-zinc-200 grid grid-cols-2 gap-3">
                   <NumberInput 
                     label="Meta Efic. (%)"
@@ -333,7 +333,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
               </div>
               
               <div className="p-4 space-y-4 flex-1">
-                {(['mercantil', 'cdc', 'services'] as const).map(p => (
+                {(['mercantil', 'cdc', 'serviços'] as const).map(p => (
                   <div key={p} className="space-y-2">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">
                       {p === 'services' ? 'Serviços' : p}

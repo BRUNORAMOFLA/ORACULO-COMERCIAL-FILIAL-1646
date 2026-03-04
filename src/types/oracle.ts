@@ -37,7 +37,7 @@ export interface CDCPillar extends PillarBase {
   };
 }
 
-export interface ServicesPillar extends PillarBase {
+export interface ServiçosPillar extends PillarBase {
   efficiency: {
     meta: number;
     realized: number;
@@ -48,7 +48,7 @@ export interface ServicesPillar extends PillarBase {
 export interface StorePillars {
   mercantil: PillarBase;
   cdc: CDCPillar;
-  services: ServicesPillar;
+  serviços: ServiçosPillar;
   operational: {
     cards: OperationalIndicator;
     combos: OperationalIndicator;
@@ -64,7 +64,7 @@ export interface Store {
   tripleCrownStatus: {
     mercantil: boolean;
     cdc: boolean;
-    services: boolean;
+    serviços: boolean;
   };
 }
 
@@ -81,7 +81,7 @@ export interface Seller {
   pillars: {
     mercantil: SellerPillar;
     cdc: SellerPillar;
-    services: SellerPillar;
+    serviços: SellerPillar;
   };
   operational: {
     cards: { meta: number; realized: number };
@@ -115,13 +115,13 @@ export interface MaturityIndex {
 export interface Projection {
   mercantilProjected: number;
   cdcProjected: number;
-  servicesProjected: number;
+  serviçosProjected: number;
   mercantilGap: number;
   cdcGap: number;
-  servicesGap: number;
+  serviçosGap: number;
   mercantilStatus: string;
   cdcStatus: string;
-  servicesStatus: string;
+  serviçosStatus: string;
   probability: string;
   isAvailable: boolean;
   daysTotal: number;
@@ -163,13 +163,13 @@ export interface IntelligenceRadar {
 export interface TrendAnalysis {
   mercantil: string;
   cdc: string;
-  services: string;
+  serviços: string;
 }
 
 export interface TrendSimulation {
   mercantil: { projected: number; gap: number; icm: number };
   cdc: { projected: number; gap: number; icm: number };
-  services: { projected: number; gap: number; icm: number };
+  serviços: { projected: number; gap: number; icm: number };
   projectedScore: number;
   projectedClassification: string;
   isAvailable: boolean;

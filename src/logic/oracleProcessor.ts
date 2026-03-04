@@ -47,9 +47,9 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   store.pillars.cdc.gap = calculateGap(store.pillars.cdc.meta, store.pillars.cdc.realized);
   store.pillars.cdc.participation.achievement = calculateICM(store.pillars.cdc.participation.realized, store.pillars.cdc.participation.meta);
 
-  store.pillars.services.icm = calculateICM(store.pillars.services.realized, store.pillars.services.meta);
-  store.pillars.services.gap = calculateGap(store.pillars.services.meta, store.pillars.services.realized);
-  store.pillars.services.efficiency.achievement = calculateICM(store.pillars.services.efficiency.realized, store.pillars.services.efficiency.meta);
+  store.pillars.serviços.icm = calculateICM(store.pillars.serviços.realized, store.pillars.serviços.meta);
+  store.pillars.serviços.gap = calculateGap(store.pillars.serviços.meta, store.pillars.serviços.realized);
+  store.pillars.serviços.efficiency.achievement = calculateICM(store.pillars.serviços.efficiency.realized, store.pillars.serviços.efficiency.meta);
 
   // Operational Store
   store.pillars.operational.cards.achievement = calculateICM(store.pillars.operational.cards.realized, store.pillars.operational.cards.meta);
@@ -67,7 +67,7 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   store.tripleCrownStatus = {
     mercantil: store.pillars.mercantil.icm >= 100,
     cdc: store.pillars.cdc.icm >= 100,
-    services: store.pillars.services.icm >= 100
+    serviços: store.pillars.serviços.icm >= 100
   };
 
   // 4. Process Sellers
@@ -81,22 +81,22 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
     seller.pillars.cdc.gap = calculateGap(seller.pillars.cdc.meta, seller.pillars.cdc.realized);
     
     // Services
-    seller.pillars.services.icm = calculateICM(seller.pillars.services.realized, seller.pillars.services.meta);
-    seller.pillars.services.gap = calculateGap(seller.pillars.services.meta, seller.pillars.services.realized);
+    seller.pillars.serviços.icm = calculateICM(seller.pillars.serviços.realized, seller.pillars.serviços.meta);
+    seller.pillars.serviços.gap = calculateGap(seller.pillars.serviços.meta, seller.pillars.serviços.realized);
 
     // Score & Classification
     seller.score = calculateHealthIndex(
       seller.pillars.mercantil.icm,
       seller.pillars.cdc.icm,
-      seller.pillars.services.icm
+      seller.pillars.serviços.icm
     );
     seller.classification = classifySeller(seller.score);
     
-    const icms = [seller.pillars.mercantil.icm, seller.pillars.cdc.icm, seller.pillars.services.icm];
+    const icms = [seller.pillars.mercantil.icm, seller.pillars.cdc.icm, seller.pillars.serviços.icm];
     seller.balanceIndex = calculateBalanceIndex(icms);
     seller.profile = classifySellerProfile(seller.score, seller.balanceIndex, icms);
 
-    seller.isTripleCrown = seller.pillars.mercantil.icm >= 100 && seller.pillars.cdc.icm >= 100 && seller.pillars.services.icm >= 100;
+    seller.isTripleCrown = seller.pillars.mercantil.icm >= 100 && seller.pillars.cdc.icm >= 100 && seller.pillars.serviços.icm >= 100;
   });
 
   // 5. Intelligence Layer (History Based)
@@ -105,12 +105,12 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   // Store Trends
   const storeMercantilHistory = [...last3Records.map(r => r.dados.store.pillars.mercantil.icm), store.pillars.mercantil.icm];
   const storeCDCHistory = [...last3Records.map(r => r.dados.store.pillars.cdc.icm), store.pillars.cdc.icm];
-  const storeServicesHistory = [...last3Records.map(r => r.dados.store.pillars.services.icm), store.pillars.services.icm];
+  const storeServiçosHistory = [...last3Records.map(r => r.dados.store.pillars.serviços.icm), store.pillars.serviços.icm];
 
   const storeTrend: TrendAnalysis = {
     mercantil: analyzeTrend(storeMercantilHistory.slice(-3)),
     cdc: analyzeTrend(storeCDCHistory.slice(-3)),
-    services: analyzeTrend(storeServicesHistory.slice(-3))
+    serviços: analyzeTrend(storeServiçosHistory.slice(-3))
   };
 
   // Seller Intelligence
@@ -140,7 +140,7 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
       trend: {
         mercantil: analyzeTrend([...sellerHistory.map(s => s!.pillars.mercantil.icm), seller.pillars.mercantil.icm].slice(-3)),
         cdc: analyzeTrend([...sellerHistory.map(s => s!.pillars.cdc.icm), seller.pillars.cdc.icm].slice(-3)),
-        services: analyzeTrend([...sellerHistory.map(s => s!.pillars.services.icm), seller.pillars.services.icm].slice(-3))
+        serviços: analyzeTrend([...sellerHistory.map(s => s!.pillars.serviços.icm), seller.pillars.serviços.icm].slice(-3))
       },
       consistency,
       consistencyReading,
@@ -178,7 +178,7 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   const pillars = [
     { name: 'Mercantil', icm: store.pillars.mercantil.icm },
     { name: 'CDC', icm: store.pillars.cdc.icm },
-    { name: 'Serviços', icm: store.pillars.services.icm }
+    { name: 'Serviços', icm: store.pillars.serviços.icm }
   ].sort((a, b) => b.icm - a.icm);
 
   const sortedSellersByScore = [...filteredSellers].sort((a, b) => b.score - a.score);
@@ -259,16 +259,16 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
     result.projection.isAvailable = true;
     result.projection.mercantilProjected = store.pillars.mercantil.realized * projectionFactor;
     result.projection.cdcProjected = store.pillars.cdc.realized * projectionFactor;
-    result.projection.servicesProjected = store.pillars.services.realized * projectionFactor;
+    result.projection.serviçosProjected = store.pillars.serviços.realized * projectionFactor;
 
     result.projection.mercantilGap = store.pillars.mercantil.meta - result.projection.mercantilProjected;
     result.projection.cdcGap = store.pillars.cdc.meta - result.projection.cdcProjected;
-    result.projection.servicesGap = store.pillars.services.meta - result.projection.servicesProjected;
+    result.projection.serviçosGap = store.pillars.serviços.meta - result.projection.serviçosProjected;
 
     const avgProjectedICM = calculateHealthIndex(
       (result.projection.mercantilProjected / (store.pillars.mercantil.meta || 1)) * 100,
       (result.projection.cdcProjected / (store.pillars.cdc.meta || 1)) * 100,
-      (result.projection.servicesProjected / (store.pillars.services.meta || 1)) * 100
+      (result.projection.serviçosProjected / (store.pillars.serviços.meta || 1)) * 100
     );
 
     if (elapsed === 0) {
@@ -287,7 +287,7 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
       .slice(0, 2); // Get last 2 closed periods
 
     if (closedHistory.length >= 1) {
-      const calculateWeighted = (pillar: 'mercantil' | 'cdc' | 'services') => {
+      const calculateWeighted = (pillar: 'mercantil' | 'cdc' | 'serviços') => {
         const currentPace = result.projection[`${pillar}Projected` as keyof typeof result.projection] as number;
         const h1 = closedHistory[0].dados.store.pillars[pillar].realized;
         const h2 = closedHistory[1]?.dados.store.pillars[pillar].realized || h1; // Fallback to h1 if only 1 closed period
@@ -298,19 +298,19 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
 
       const mercantilSim = calculateWeighted('mercantil');
       const cdcSim = calculateWeighted('cdc');
-      const servicesSim = calculateWeighted('services');
+      const serviçosSim = calculateWeighted('serviços');
 
       const mercantilICM = calculateICM(mercantilSim, store.pillars.mercantil.meta);
       const cdcICM = calculateICM(cdcSim, store.pillars.cdc.meta);
-      const servicesICM = calculateICM(servicesSim, store.pillars.services.meta);
+      const serviçosICM = calculateICM(serviçosSim, store.pillars.serviços.meta);
 
-      const projectedScore = calculateHealthIndex(mercantilICM, cdcICM, servicesICM);
+      const projectedScore = calculateHealthIndex(mercantilICM, cdcICM, serviçosICM);
 
       result.trendSimulation = {
         isAvailable: true,
         mercantil: { projected: mercantilSim, gap: calculateGap(store.pillars.mercantil.meta, mercantilSim), icm: mercantilICM },
         cdc: { projected: cdcSim, gap: calculateGap(store.pillars.cdc.meta, cdcSim), icm: cdcICM },
-        services: { projected: servicesSim, gap: calculateGap(store.pillars.services.meta, servicesSim), icm: servicesICM },
+        serviços: { projected: serviçosSim, gap: calculateGap(store.pillars.serviços.meta, serviçosSim), icm: serviçosICM },
         projectedScore,
         projectedClassification: classifyHealth(projectedScore)
       };
@@ -322,21 +322,21 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
     const mode = store.period.type === 'daily' ? 'DIARIO' : store.period.type === 'weekly' ? 'SEMANAL' : 'MENSAL';
     const currentScore = store.healthIndex;
     
-    const impacts = (['mercantil', 'cdc', 'services'] as const).map(p => {
+    const impacts = (['mercantil', 'cdc', 'serviços'] as const).map(p => {
       const simulatedRealized = store.pillars[p].realized * 1.1;
       const simulatedICM = calculateICM(simulatedRealized, store.pillars[p].meta);
       
       const icms = {
         mercantil: store.pillars.mercantil.icm,
         cdc: store.pillars.cdc.icm,
-        services: store.pillars.services.icm
+        serviços: store.pillars.serviços.icm
       };
       icms[p] = simulatedICM;
       
-      const simulatedScore = calculateHealthIndex(icms.mercantil, icms.cdc, icms.services);
+      const simulatedScore = calculateHealthIndex(icms.mercantil, icms.cdc, icms.serviços);
       
       return {
-        pillar: p.toUpperCase(),
+        pillar: p === 'serviços' ? 'SERVIÇOS' : p.toUpperCase(),
         marginalScore: simulatedScore - currentScore,
         collectiveValue: store.pillars[p].realized * 0.1,
         simulatedScore,

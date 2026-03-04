@@ -36,7 +36,7 @@ import {
 import { formatNumberBR, formatCurrencyBR } from '../utils/formatters';
 import { FeedbackModal } from './FeedbackModal';
 import { TripleCrownSellerItem } from './TripleCrownSellerItem';
-import { Seller, OracleResult, HistoryRecord } from '../types/oracle';
+import { Seller, OracleResult, HistoryRecord, PeriodType } from '../types/oracle';
 import { IntelligenceRadar } from './IntelligenceRadar';
 import { StrategicCommandPanel } from './StrategicCommandPanel';
 import { StrategicPriorityBlock } from './StrategicPriorityBlock';
@@ -168,6 +168,30 @@ Desvio entre melhor e pior vendedor: ${dispersion.toFixed(1)} pontos.
 Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
   };
 
+  const getHorizonLabel = (type: PeriodType) => {
+    switch (type) {
+      case 'daily': return 'Diário';
+      case 'weekly': return 'Semanal';
+      case 'monthly': return 'Mensal';
+      default: return 'Diário';
+    }
+  };
+
+  const getHorizonBadge = (type: PeriodType) => {
+    switch (type) {
+      case 'daily': return { label: '🔵 TÁTICO', color: 'bg-blue-600' };
+      case 'weekly': return { label: '🟡 TENDÊNCIA', color: 'bg-amber-500' };
+      case 'monthly': return { label: '🔴 ESTRUTURAL', color: 'bg-red-600' };
+      default: return { label: '🔵 TÁTICO', color: 'bg-blue-600' };
+    }
+  };
+
+  const getOperationStatus = (score: number) => {
+    if (score >= 100) return { label: '🟢 PERFORMANCE SUSTENTÁVEL', color: 'text-emerald-600' };
+    if (score >= 80) return { label: '🟡 ZONA DE ATENÇÃO', color: 'text-amber-600' };
+    return { label: '🔴 RISCO ESTRUTURAL', color: 'text-red-600' };
+  };
+
   const isClosed = data.store.period.status === 'fechado';
   const isProjection = data.store.period.status === 'projecao';
   const isPartial = data.store.period.status === 'parcial';
@@ -184,6 +208,26 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
 
   return (
     <div className="space-y-8" id="dashboard-content">
+      {/* CABEÇALHO EXECUTIVO (FIXO NO PDF) */}
+      <div className="bg-white p-8 rounded-3xl border border-primary/10 shadow-sm relative overflow-hidden mb-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-primary">
+              <span className="text-2xl">🧭</span>
+              <h1 className="text-xl font-black uppercase tracking-tighter">Horizonte: {getHorizonLabel(data.store.period.type)}</h1>
+            </div>
+            <div className="flex items-center gap-3 text-zinc-500">
+              <span className="text-2xl">📅</span>
+              <p className="text-sm font-bold">Período: {data.store.period.label}</p>
+            </div>
+          </div>
+          
+          <div className={`px-6 py-3 rounded-2xl text-white text-xs font-black uppercase tracking-widest shadow-xl ${getHorizonBadge(data.store.period.type).color}`}>
+            {getHorizonBadge(data.store.period.type).label}
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-export">
         <div className="flex items-center gap-3">
           <Activity size={20} className="text-primary" />
@@ -246,6 +290,17 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
       </div>
 
       <IntelligenceRadar data={data} />
+
+      {/* STATUS EXECUTIVO DA OPERAÇÃO */}
+      <div className="bg-white p-8 rounded-3xl border-2 border-dashed border-zinc-100 shadow-sm">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-2xl">📊</span>
+          <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Status da Operação:</h3>
+        </div>
+        <div className={`text-3xl font-black tracking-tighter ${getOperationStatus(data.store.healthIndex).color}`}>
+          {getOperationStatus(data.store.healthIndex).label}
+        </div>
+      </div>
 
       {/* LAYER 1: HISTÓRICO CONSOLIDADO */}
       {closedHistory.length > 0 && (
