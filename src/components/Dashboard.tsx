@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { OracleData } from '../types/oracle';
 import { usePhotoStorage } from '../hooks/usePhotoStorage';
 import { 
@@ -200,6 +200,38 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
   const isProjection = data.store.period.status === 'projecao';
   const isPartial = data.store.period.status === 'parcial';
 
+  const seasonalScore = useMemo(() => {
+    if (!fullHistory) return data.store.healthIndex;
+
+    const currentMonth = data.store.period.month;
+    const currentYear = data.store.period.year;
+
+    const monthDailyRecords = fullHistory.diario.filter(r => {
+      const per = r.dados.store.period;
+      if (per.type !== 'daily') return false;
+      let recordMonth = per.month;
+      let recordYear = per.year;
+      if (per.date) {
+        const [y, m] = per.date.split('-').map(Number);
+        recordMonth = m;
+        recordYear = y;
+      }
+      return recordMonth === currentMonth && recordYear === currentYear;
+    });
+
+    if (monthDailyRecords.length === 0) return data.store.healthIndex;
+
+    const pillars = ['mercantil', 'cdc', 'services'] as const;
+    const seasonalIcms = pillars.map(p => {
+      const expected = monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars[p].meta || 0), 0);
+      const realized = monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars[p].realized || 0), 0);
+      return expected > 0 ? (realized / expected) * 100 : 0;
+    });
+
+    // Weighted average (40/30/30)
+    return (seasonalIcms[0] * 0.4) + (seasonalIcms[1] * 0.3) + (seasonalIcms[2] * 0.3);
+  }, [data, fullHistory]);
+
   const bottleneckPillars = [
     { id: 'mercantil', label: 'Mercantil' },
     { id: 'cdc', label: 'CDC' },
@@ -349,7 +381,7 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
       {/* NÍVEL 2 — DIAGNÓSTICO OPERACIONAL */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm space-y-8">
-          <OperationalBottleneckRadar data={data} />
+          <OperationalBottleneckRadar data={data} dailyHistory={fullHistory?.diario} />
         </div>
         <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm space-y-8">
           <TeamDispersionBlock sellers={filteredSellers} />
@@ -360,10 +392,10 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
       <div className="bg-white p-8 rounded-3xl border-2 border-dashed border-zinc-100 shadow-sm">
         <div className="flex items-center gap-3 mb-4">
           <span className="text-2xl">📊</span>
-          <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Status da Operação:</h3>
+          <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Status da Operação (Sazonal):</h3>
         </div>
-        <div className={`text-3xl font-black tracking-tighter ${getOperationStatus(data.store.healthIndex).color}`}>
-          {getOperationStatus(data.store.healthIndex).label}
+        <div className={`text-3xl font-black tracking-tighter ${getOperationStatus(seasonalScore).color}`}>
+          {getOperationStatus(seasonalScore).label}
         </div>
       </div>
 

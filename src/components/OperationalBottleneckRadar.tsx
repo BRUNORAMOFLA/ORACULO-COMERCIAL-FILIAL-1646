@@ -1,15 +1,16 @@
 
 import React from 'react';
-import { OracleResult } from '../types/oracle';
+import { HistoryRecord, OracleResult } from '../types/oracle';
 import { motion } from 'motion/react';
 import { AlertCircle, Target, TrendingDown } from 'lucide-react';
-import { formatCurrencyBR } from '../utils/formatters';
+import { calculateICM } from '../calculations/formulas';
 
 interface Props {
   data: OracleResult;
+  dailyHistory?: HistoryRecord[];
 }
 
-export const OperationalBottleneckRadar: React.FC<Props> = ({ data }) => {
+export const OperationalBottleneckRadar: React.FC<Props> = ({ data, dailyHistory = [] }) => {
   const pillars = [
     { id: 'mercantil', label: 'Mercantil' },
     { id: 'cdc', label: 'CDC' },
@@ -17,8 +18,35 @@ export const OperationalBottleneckRadar: React.FC<Props> = ({ data }) => {
   ] as const;
 
   const analysis = pillars.map(p => {
-    const pillarData = data.store.pillars[p.id as keyof typeof data.store.pillars] as any;
-    const icm = pillarData.icm;
+    const currentMonth = data.store.period.month;
+    const currentYear = data.store.period.year;
+
+    // Filter daily records for the current month to get accumulated data
+    const monthDailyRecords = dailyHistory.filter(r => {
+      const per = r.dados.store.period;
+      if (per.type !== 'daily') return false;
+      
+      let recordMonth = per.month;
+      let recordYear = per.year;
+      
+      if (per.date) {
+        const [y, m] = per.date.split('-').map(Number);
+        recordMonth = m;
+        recordYear = y;
+      }
+      
+      return recordMonth === currentMonth && recordYear === currentYear;
+    });
+
+    const expectedAccumulatedMeta = monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars[p.id].meta || 0), 0);
+    const accumulatedRealized = monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars[p.id].realized || 0), 0);
+
+    // If we have accumulated data, use it for seasonal ICM. 
+    // Otherwise fallback to the current data's ICM (which might be the daily one if we are in daily view)
+    const icm = expectedAccumulatedMeta > 0 
+      ? calculateICM(accumulatedRealized, expectedAccumulatedMeta)
+      : data.store.pillars[p.id].icm;
+
     const distance = Math.max(0, 100 - icm);
     return { ...p, icm, distance };
   }).sort((a, b) => b.distance - a.distance);
@@ -47,7 +75,7 @@ export const OperationalBottleneckRadar: React.FC<Props> = ({ data }) => {
           <AlertCircle size={18} />
         </div>
         <h3 className="text-xs font-black uppercase tracking-widest text-zinc-900">
-          Radar de Gargalo Operacional
+          Radar de Gargalo Sazonal
         </h3>
       </div>
 
@@ -74,7 +102,7 @@ export const OperationalBottleneckRadar: React.FC<Props> = ({ data }) => {
             </div>
             
             <div className="space-y-1">
-              <span className="text-[8px] font-bold text-zinc-400 uppercase block">ICM Atual</span>
+              <span className="text-[8px] font-bold text-zinc-400 uppercase block">ICM Sazonal</span>
               <p className={`text-lg font-black ${idx === 0 ? 'text-accent' : 'text-zinc-900'}`}>
                 {item.icm.toFixed(1)}%
               </p>
@@ -82,7 +110,7 @@ export const OperationalBottleneckRadar: React.FC<Props> = ({ data }) => {
 
             <div className="mt-4 pt-4 border-t border-zinc-100 flex justify-between items-end">
               <div className="space-y-0.5">
-                <span className="text-[8px] font-bold text-zinc-400 uppercase block">Distância da Meta</span>
+                <span className="text-[8px] font-bold text-zinc-400 uppercase block">Distância Sazonal</span>
                 <span className={`text-sm font-black ${idx === 0 ? 'text-accent' : 'text-zinc-600'}`}>
                   {item.distance.toFixed(1)}%
                 </span>
@@ -103,8 +131,8 @@ export const OperationalBottleneckRadar: React.FC<Props> = ({ data }) => {
           <TrendingDown size={20} />
         </div>
         <p className="text-xs font-bold leading-relaxed">
-          Gargalo principal da operação: <span className="text-accent uppercase font-black">{mainBottleneck.label}</span>. 
-          Este pilar apresenta a maior distância da meta (<span className="text-accent font-black">{mainBottleneck.distance.toFixed(1)}%</span>), exigindo intervenção prioritária.
+          Gargalo principal da operação (Sazonal): <span className="text-accent uppercase font-black">{mainBottleneck.label}</span>. 
+          Este pilar apresenta a maior distância da meta esperada até hoje (<span className="text-accent font-black">{mainBottleneck.distance.toFixed(1)}%</span>), exigindo intervenção prioritária.
         </p>
       </div>
     </section>
