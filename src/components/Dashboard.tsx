@@ -37,6 +37,12 @@ import { formatNumberBR, formatCurrencyBR } from '../utils/formatters';
 import { FeedbackModal } from './FeedbackModal';
 import { TripleCrownSellerItem } from './TripleCrownSellerItem';
 import { Seller, OracleResult, HistoryRecord, PeriodType, OracleHistoryV1 } from '../types/oracle';
+import { 
+  calculateHealthIndex, 
+  classifySeller, 
+  calculateBalanceIndex, 
+  classifySellerProfile 
+} from '../calculations/formulas';
 import { IntelligenceRadar } from './IntelligenceRadar';
 import { StrategicCommandPanel } from './StrategicCommandPanel';
 import { StrategicPriorityBlock } from './StrategicPriorityBlock';
@@ -232,6 +238,65 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
     return (seasonalIcms[0] * 0.4) + (seasonalIcms[1] * 0.3) + (seasonalIcms[2] * 0.3);
   }, [data, fullHistory]);
 
+  const seasonalSellers = useMemo(() => {
+    const isMonthly = data.store.period.type === 'monthly';
+    if (!isMonthly || !fullHistory) return filteredSellers;
+
+    const currentMonth = data.store.period.month;
+    const currentYear = data.store.period.year;
+
+    const monthDailyRecords = fullHistory.diario.filter(r => {
+      const per = r.dados.store.period;
+      if (per.type !== 'daily') return false;
+      let recordMonth = per.month;
+      let recordYear = per.year;
+      if (per.date) {
+        const [y, m] = per.date.split('-').map(Number);
+        recordMonth = m;
+        recordYear = y;
+      }
+      return recordMonth === currentMonth && recordYear === currentYear;
+    });
+
+    if (monthDailyRecords.length === 0) return filteredSellers;
+
+    return filteredSellers.map(seller => {
+      const sellerDailyRecords = monthDailyRecords.map(r => 
+        r.dados.sellers.find(s => s.name === seller.name)
+      ).filter(Boolean);
+
+      if (sellerDailyRecords.length === 0) return seller;
+
+      const mercantilMeta = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.meta || 0), 0);
+      const mercantilReal = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.realized || 0), 0);
+      const cdcMeta = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.meta || 0), 0);
+      const cdcReal = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.realized || 0), 0);
+      const servicesMeta = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.meta || 0), 0);
+      const servicesReal = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.realized || 0), 0);
+
+      const mercantilIcm = mercantilMeta > 0 ? (mercantilReal / mercantilMeta) * 100 : 0;
+      const cdcIcm = cdcMeta > 0 ? (cdcReal / cdcMeta) * 100 : 0;
+      const servicesIcm = servicesMeta > 0 ? (servicesReal / servicesMeta) * 100 : 0;
+
+      const score = calculateHealthIndex(mercantilIcm, cdcIcm, servicesIcm);
+      const classification = classifySeller(score);
+      const balanceIndex = calculateBalanceIndex([mercantilIcm, cdcIcm, servicesIcm]);
+      const profile = classifySellerProfile(score, balanceIndex, [mercantilIcm, cdcIcm, servicesIcm]);
+
+      return {
+        ...seller,
+        pillars: {
+          mercantil: { ...seller.pillars.mercantil, icm: mercantilIcm, realized: mercantilReal, meta: mercantilMeta },
+          cdc: { ...seller.pillars.cdc, icm: cdcIcm, realized: cdcReal, meta: cdcMeta },
+          services: { ...seller.pillars.services, icm: servicesIcm, realized: servicesReal, meta: servicesMeta },
+        },
+        score,
+        classification,
+        profile
+      };
+    });
+  }, [data, fullHistory, filteredSellers]);
+
   const bottleneckPillars = [
     { id: 'mercantil', label: 'Mercantil' },
     { id: 'cdc', label: 'CDC' },
@@ -384,7 +449,7 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
           <OperationalBottleneckRadar data={data} dailyHistory={fullHistory?.diario} />
         </div>
         <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm space-y-8">
-          <TeamDispersionBlock sellers={filteredSellers} />
+          <TeamDispersionBlock sellers={seasonalSellers} />
         </div>
       </div>
 
@@ -558,7 +623,9 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
         {/* Seller Rankings */}
         <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xs font-bold uppercase text-zinc-400">Ranking de Performance Individual</h3>
+            <h3 className="text-xs font-bold uppercase text-zinc-400">
+              Ranking de Performance Individual {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}
+            </h3>
             <div className="flex gap-4 text-[10px] font-bold uppercase">
               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Elite</div>
               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-primary" /> Alto</div>
@@ -573,15 +640,15 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
                 <tr className="text-[10px] font-black uppercase text-zinc-400 border-b">
                   <th className="pb-3 px-2">Pos</th>
                   <th className="pb-3 px-2">Vendedor</th>
-                  <th className="pb-3 px-2 text-center">Mercantil</th>
-                  <th className="pb-3 px-2 text-center">CDC</th>
-                  <th className="pb-3 px-2 text-center">Serviços</th>
+                  <th className="pb-3 px-2 text-center">{data.store.period.type === 'monthly' ? 'ICM Saz.' : 'Mercantil'}</th>
+                  <th className="pb-3 px-2 text-center">{data.store.period.type === 'monthly' ? 'ICM Saz.' : 'CDC'}</th>
+                  <th className="pb-3 px-2 text-center">{data.store.period.type === 'monthly' ? 'ICM Saz.' : 'Serviços'}</th>
                   <th className="pb-3 px-2 text-right">Score</th>
                   <th className="pb-3 px-2 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
-                {filteredSellers.sort((a, b) => b.score - a.score).map((s, idx) => (
+                {[...seasonalSellers].sort((a, b) => b.score - a.score).map((s, idx) => (
                   <tr key={s.id} className="group hover:bg-zinc-50 transition-colors">
                     <td className="py-4 px-2 text-xs font-bold text-zinc-400">#{idx + 1}</td>
                     <td className="py-4 px-2">
