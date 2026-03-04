@@ -21,7 +21,7 @@ export const StrategicPriorityBlock: React.FC<Props> = ({ sellers, store }) => {
       const icms = [
         { name: 'mercantil', value: s.pillars.mercantil.icm },
         { name: 'cdc', value: s.pillars.cdc.icm },
-        { name: 'serviços', value: s.pillars.services.icm }
+        { name: 'services', value: s.pillars.services.icm }
       ];
 
       // Find weakest pillar

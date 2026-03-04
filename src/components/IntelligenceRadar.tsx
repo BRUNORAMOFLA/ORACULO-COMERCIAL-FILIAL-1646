@@ -280,17 +280,20 @@ export const IntelligenceRadar: React.FC<Props> = ({ data }) => {
             )}
           </AnimatePresence>
           <div className="space-y-4">
-            {Object.entries(storeTrend).map(([pilar, trend], idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">
-                <span className="text-xs font-bold uppercase text-zinc-500">{pilar}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-primary">{trend}</span>
-                  {trend.includes('alta') ? <TrendingUp size={14} className="text-emerald-500" /> : 
-                   trend.includes('retração') ? <TrendingDown size={14} className="text-accent" /> : 
-                   <Activity size={14} className="text-amber-500" />}
+            {Object.entries(storeTrend).map(([pilar, trend], idx) => {
+              const label = pilar === 'services' ? 'Serviços' : pilar.charAt(0).toUpperCase() + pilar.slice(1);
+              return (
+                <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">
+                  <span className="text-xs font-bold uppercase text-zinc-500">{label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-primary">{trend}</span>
+                    {trend.includes('alta') ? <TrendingUp size={14} className="text-emerald-500" /> : 
+                     trend.includes('retração') ? <TrendingDown size={14} className="text-accent" /> : 
+                     <Activity size={14} className="text-amber-500" />}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="p-3 bg-accent/10 border border-accent/20 rounded-xl flex items-center gap-3">
             <ShieldAlert size={18} className="text-accent" />

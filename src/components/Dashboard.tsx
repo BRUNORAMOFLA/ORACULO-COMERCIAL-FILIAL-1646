@@ -41,6 +41,8 @@ import { IntelligenceRadar } from './IntelligenceRadar';
 import { StrategicCommandPanel } from './StrategicCommandPanel';
 import { StrategicPriorityBlock } from './StrategicPriorityBlock';
 import { CollectiveImpactBlock } from './CollectiveImpactBlock';
+import { OperationalBottleneckRadar } from './OperationalBottleneckRadar';
+import { TeamDispersionBlock } from './TeamDispersionBlock';
 import { 
   exportToExcel, 
   exportToPDF, 
@@ -196,6 +198,21 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
   const isProjection = data.store.period.status === 'projecao';
   const isPartial = data.store.period.status === 'parcial';
 
+  const bottleneckPillars = [
+    { id: 'mercantil', label: 'Mercantil' },
+    { id: 'cdc', label: 'CDC' },
+    { id: 'services', label: 'Serviços' }
+  ] as const;
+
+  const bottleneckAnalysis = bottleneckPillars.map(p => {
+    const pillarData = data.store.pillars[p.id];
+    const distance = Math.max(0, 100 - pillarData.icm);
+    return { ...p, distance };
+  }).sort((a, b) => b.distance - a.distance);
+
+  const mainBottleneck = bottleneckAnalysis[0];
+  const hasBottleneck = bottleneckAnalysis.some(a => a.distance > 0);
+
   const closedHistory = history
     .filter(r => r.dados.store.period.status === 'fechado')
     .sort((a, b) => {
@@ -291,6 +308,47 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
 
       <IntelligenceRadar data={data} />
 
+      {/* NÍVEL 1 — SITUAÇÃO DA LOJA */}
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-primary text-white p-8 rounded-[2.5rem] shadow-xl shadow-primary/20 flex flex-col items-center justify-center relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+            <Trophy size={80} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-2">Score Global</span>
+          <div className="text-6xl font-black tracking-tighter mb-2">{data.store.healthIndex.toFixed(0)}</div>
+          <div className="px-4 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest">
+            {data.store.classification}
+          </div>
+        </div>
+
+        {(['mercantil', 'cdc', 'services'] as const).map((p, idx) => (
+          <div key={p} className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm flex flex-col items-center justify-center relative overflow-hidden group hover:border-primary/30 transition-all">
+            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-500">
+              <Target size={80} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">ICM {p === 'services' ? 'Serviços' : p}</span>
+            <div className="text-5xl font-black tracking-tighter text-primary mb-2">{data.store.pillars[p].icm.toFixed(1)}%</div>
+            <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden mt-2">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, data.store.pillars[p].icm)}%` }}
+                className={`h-full ${data.store.pillars[p].icm >= 100 ? 'bg-emerald-500' : data.store.pillars[p].icm >= 80 ? 'bg-amber-500' : 'bg-accent'}`}
+              />
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {/* NÍVEL 2 — DIAGNÓSTICO OPERACIONAL */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm space-y-8">
+          <OperationalBottleneckRadar data={data} />
+        </div>
+        <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm space-y-8">
+          <TeamDispersionBlock sellers={filteredSellers} />
+        </div>
+      </div>
+
       {/* STATUS EXECUTIVO DA OPERAÇÃO */}
       <div className="bg-white p-8 rounded-3xl border-2 border-dashed border-zinc-100 shadow-sm">
         <div className="flex items-center gap-3 mb-4">
@@ -362,6 +420,17 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
               </div>
             </div>
 
+            <div className="p-4 bg-accent/5 rounded-2xl border border-accent/10 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🎯</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-accent">Gargalo Operacional Atual:</span>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-black text-zinc-900 uppercase">{hasBottleneck ? mainBottleneck.label : 'Nenhum'}</span>
+                <span className="text-xs font-bold text-accent ml-2">— {hasBottleneck ? mainBottleneck.distance.toFixed(1) : '0.0'}% de distância da meta</span>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {(['mercantil', 'cdc', 'services'] as const).map(p => {
                 const remainingDays = data.store.period.businessDaysTotal - data.store.period.businessDaysElapsed;
@@ -370,7 +439,7 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
                 return (
                   <div key={p} className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black uppercase text-zinc-400">{p}</span>
+                      <span className="text-[10px] font-black uppercase text-zinc-400">{p === 'services' ? 'Serviços' : p}</span>
                       <span className="text-[10px] font-black text-primary">{data.store.pillars[p].icm.toFixed(1)}%</span>
                     </div>
                     <div>
@@ -408,27 +477,134 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
               </div>
               
               <div className="space-y-4">
-                {(['mercantil', 'cdc', 'services'] as const).map(p => (
-                  <div key={p} className="flex justify-between items-center border-b border-white/10 pb-2">
-                    <span className="text-[10px] font-bold uppercase text-white/60">{p}</span>
-                    <div className="text-right">
-                      <span className="text-xs font-black block">{formatCurrencyBR(data.projection[`${p}Projected` as keyof typeof data.projection] as number)}</span>
-                      <span className={`text-[8px] font-bold uppercase ${data.projection[`${p}Gap` as keyof typeof data.projection] as number <= 0 ? 'text-emerald-400' : 'text-accent'}`}>
-                        {data.projection[`${p}Gap` as keyof typeof data.projection] as number <= 0 ? 'Meta Atingida' : `Faltam ${formatCurrencyBR(data.projection[`${p}Gap` as keyof typeof data.projection] as number)}`}
-                      </span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/50 block mb-2">
+                  Projeção Linear {data.store.period.type === 'daily' ? 'do Dia' : data.store.period.type === 'weekly' ? 'da Semana' : 'do Mês'}
+                </span>
+                <div className="flex items-baseline gap-2 mb-4">
+                  <span className="text-4xl font-black">{data.projection.probability}</span>
+                  <span className="text-[10px] font-bold uppercase text-white/70">Probabilidade</span>
+                </div>
+                
+                <div className="space-y-4">
+                  {(['mercantil', 'cdc', 'services'] as const).map(p => (
+                    <div key={p} className="flex justify-between items-center border-b border-white/10 pb-2">
+                      <span className="text-[10px] font-bold uppercase text-white/60">{p === 'services' ? 'Serviços' : p}</span>
+                      <div className="text-right">
+                        <span className="text-xs font-black block">{formatCurrencyBR(data.projection[`${p}Projected` as keyof typeof data.projection] as number)}</span>
+                        <span className={`text-[8px] font-bold uppercase ${data.projection[`${p}Gap` as keyof typeof data.projection] as number <= 0 ? 'text-emerald-400' : 'text-accent'}`}>
+                          {data.projection[`${p}Gap` as keyof typeof data.projection] as number <= 0 ? 'Meta Atingida' : `Faltam ${formatCurrencyBR(data.projection[`${p}Gap` as keyof typeof data.projection] as number)}`}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* STRATEGIC CONTEXT BLOCKS */}
-      {data.strategicContext && (
-        <StrategicCommandPanel context={data.strategicContext} />
-      )}
+      {/* NÍVEL 3 — INTERVENÇÃO GERENCIAL */}
+      <section className="space-y-8">
+        <div className="flex items-center gap-2">
+          <Sparkles size={18} className="text-accent" />
+          <h3 className="text-xs font-black uppercase tracking-widest text-zinc-900">Nível 3 — Intervenção Gerencial</h3>
+        </div>
+
+        {/* STRATEGIC CONTEXT BLOCKS */}
+        {data.strategicContext && (
+          <StrategicCommandPanel context={data.strategicContext} />
+        )}
+
+        {/* Seller Rankings */}
+        <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xs font-bold uppercase text-zinc-400">Ranking de Performance Individual</h3>
+            <div className="flex gap-4 text-[10px] font-bold uppercase">
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Elite</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-primary" /> Alto</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500" /> Parcial</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-accent" /> Risco</div>
+            </div>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-[10px] font-black uppercase text-zinc-400 border-b">
+                  <th className="pb-3 px-2">Pos</th>
+                  <th className="pb-3 px-2">Vendedor</th>
+                  <th className="pb-3 px-2 text-center">Mercantil</th>
+                  <th className="pb-3 px-2 text-center">CDC</th>
+                  <th className="pb-3 px-2 text-center">Serviços</th>
+                  <th className="pb-3 px-2 text-right">Score</th>
+                  <th className="pb-3 px-2 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {filteredSellers.sort((a, b) => b.score - a.score).map((s, idx) => (
+                  <tr key={s.id} className="group hover:bg-zinc-50 transition-colors">
+                    <td className="py-4 px-2 text-xs font-bold text-zinc-400">#{idx + 1}</td>
+                    <td className="py-4 px-2">
+                      <button 
+                        onClick={() => setSelectedSeller(s)}
+                        className="flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
+                      >
+                        <span className="text-sm font-bold text-primary underline decoration-primary/20 underline-offset-4">{s.name || `Vendedor ${idx + 1}`}</span>
+                        {s.isTripleCrown && <Award size={14} className="text-accent" />}
+                      </button>
+                    </td>
+                    <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.mercantil.icm.toFixed(1)}%</td>
+                    <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.cdc.icm.toFixed(1)}%</td>
+                    <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.services.icm.toFixed(1)}%</td>
+                    <td className="py-4 px-2 text-right">
+                      <div className="flex flex-col items-end">
+                        <span className="text-sm font-black text-primary">{s.score.toFixed(1)}%</span>
+                        {s.intelligence?.trend.mercantil.includes('alta') ? <TrendingUp size={10} className="text-emerald-500" /> : 
+                         s.intelligence?.trend.mercantil.includes('retração') ? <TrendingDown size={10} className="text-accent" /> : null}
+                      </div>
+                    </td>
+                    <td className="py-4 px-2 text-right">
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${
+                            s.classification === 'Elite' ? 'bg-emerald-50 text-emerald-700' :
+                            s.classification === 'Alto Contribuidor' ? 'bg-primary/10 text-primary' :
+                            s.classification === 'Parcial' ? 'bg-amber-50 text-amber-700' :
+                            'bg-accent/10 text-accent'
+                          }`}>
+                            {s.classification}
+                          </span>
+                          {s.profile && (
+                            <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded border ${
+                              s.profile.includes('DOMINANTE EQUILIBRADO') ? 'border-emerald-200 text-emerald-600 bg-emerald-50/50' :
+                              s.profile.includes('DOMINANTE DESBALANCEADO') ? 'border-amber-200 text-amber-600 bg-amber-50/50' :
+                              s.profile.includes('VOLUME FRÁGIL') ? 'border-accent/20 text-accent bg-accent/5' :
+                              'border-zinc-200 text-zinc-500 bg-zinc-50'
+                            }`}>
+                              {s.profile}
+                            </span>
+                          )}
+                        </div>
+                        {s.intelligence?.riskAlert && (
+                          <div className="flex items-center gap-1 text-[8px] font-bold text-accent uppercase">
+                            <ShieldAlert size={10} /> Risco
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <StrategicPriorityBlock sellers={data.sellers} store={data.store} />
+          <CollectiveImpactBlock sellers={data.sellers} store={data.store} />
+        </div>
+      </section>
 
       {/* LAYER 3: TENDÊNCIA FUTURA */}
       {data.trendSimulation?.isAvailable && data.store.period.type === 'monthly' && (
@@ -462,7 +638,7 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
             {(['mercantil', 'cdc', 'services'] as const).map(p => (
               <div key={p} className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black uppercase text-white/40">{p}</span>
+                  <span className="text-[10px] font-black uppercase text-white/40">{p === 'services' ? 'Serviços' : p}</span>
                   <span className="text-lg font-black text-white">{data.trendSimulation![p].icm.toFixed(1)}%</span>
                 </div>
                 <div>
@@ -806,93 +982,6 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
-
-      {/* Seller Rankings */}
-      <div className="bg-white p-6 rounded-2xl border border-primary/10 shadow-sm">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xs font-bold uppercase text-zinc-400">Ranking de Performance Individual</h3>
-          <div className="flex gap-4 text-[10px] font-bold uppercase">
-            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Elite</div>
-            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-primary" /> Alto</div>
-            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500" /> Parcial</div>
-            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-accent" /> Risco</div>
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-[10px] font-black uppercase text-zinc-400 border-b">
-                <th className="pb-3 px-2">Pos</th>
-                <th className="pb-3 px-2">Vendedor</th>
-                <th className="pb-3 px-2 text-center">Mercantil</th>
-                <th className="pb-3 px-2 text-center">CDC</th>
-                <th className="pb-3 px-2 text-center">Serviços</th>
-                <th className="pb-3 px-2 text-right">Score</th>
-                <th className="pb-3 px-2 text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-50">
-              {filteredSellers.sort((a, b) => b.score - a.score).map((s, idx) => (
-                <tr key={s.id} className="group hover:bg-zinc-50 transition-colors">
-                  <td className="py-4 px-2 text-xs font-bold text-zinc-400">#{idx + 1}</td>
-                  <td className="py-4 px-2">
-                    <button 
-                      onClick={() => setSelectedSeller(s)}
-                      className="flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
-                    >
-                      <span className="text-sm font-bold text-primary underline decoration-primary/20 underline-offset-4">{s.name || `Vendedor ${idx + 1}`}</span>
-                      {s.isTripleCrown && <Award size={14} className="text-accent" />}
-                    </button>
-                  </td>
-                  <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.mercantil.icm.toFixed(1)}%</td>
-                  <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.cdc.icm.toFixed(1)}%</td>
-                  <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.services.icm.toFixed(1)}%</td>
-                  <td className="py-4 px-2 text-right">
-                    <div className="flex flex-col items-end">
-                      <span className="text-sm font-black text-primary">{s.score.toFixed(1)}%</span>
-                      {s.intelligence?.trend.mercantil.includes('alta') ? <TrendingUp size={10} className="text-emerald-500" /> : 
-                       s.intelligence?.trend.mercantil.includes('retração') ? <TrendingDown size={10} className="text-accent" /> : null}
-                    </div>
-                  </td>
-                  <td className="py-4 px-2 text-right">
-                    <div className="flex flex-col items-end gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${
-                          s.classification === 'Elite' ? 'bg-emerald-50 text-emerald-700' :
-                          s.classification === 'Alto Contribuidor' ? 'bg-primary/10 text-primary' :
-                          s.classification === 'Parcial' ? 'bg-amber-50 text-amber-700' :
-                          'bg-accent/10 text-accent'
-                        }`}>
-                          {s.classification}
-                        </span>
-                        {s.profile && (
-                          <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded border ${
-                            s.profile.includes('DOMINANTE EQUILIBRADO') ? 'border-emerald-200 text-emerald-600 bg-emerald-50/50' :
-                            s.profile.includes('DOMINANTE DESBALANCEADO') ? 'border-amber-200 text-amber-600 bg-amber-50/50' :
-                            s.profile.includes('VOLUME FRÁGIL') ? 'border-accent/20 text-accent bg-accent/5' :
-                            'border-zinc-200 text-zinc-500 bg-zinc-50'
-                          }`}>
-                            {s.profile}
-                          </span>
-                        )}
-                      </div>
-                      {s.intelligence?.riskAlert && (
-                        <div className="flex items-center gap-1 text-[8px] font-bold text-accent uppercase">
-                          <ShieldAlert size={10} /> Risco
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <StrategicPriorityBlock sellers={data.sellers} store={data.store} />
-        <CollectiveImpactBlock sellers={data.sellers} store={data.store} />
       </div>
 
       <AnimatePresence>

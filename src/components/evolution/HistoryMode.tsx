@@ -186,7 +186,7 @@ export const HistoryMode: React.FC<Props> = ({ history, currentData, periodMode 
 Analise o histórico global da unidade (${historyPoints.length} ciclos):
 - Tendência de Score: ${trend}
 - Tendência de Dependência: ${depTrend}
-- Médias Históricas (ICM): Mercantil ${avgMercICM.toFixed(1)}%, CDC ${avgCDCICM.toFixed(1)}%, Serviços ${avgServICM.toFixed(1)}%
+- Médias Históricas (ICM): Mercantil ${avgMercICM.toFixed(1)}%, CDC ${avgCDCICM.toFixed(1)}%, Services ${avgServICM.toFixed(1)}%
 - Lista de Ciclos (Score / Dependência):
 ${historyPoints.map(p => `- ${p.label}: Score ${p.score.toFixed(1)} / Dep ${p.dependency.toFixed(1)}%`).join('\n')}
 
@@ -276,7 +276,7 @@ Gere as análises Interna e Executiva conforme as regras de blocos obrigatórios
       {/* Score/ICM Evolution Chart */}
       <div className="p-8 bg-white rounded-[2rem] border border-black/5 shadow-sm space-y-6">
         <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">
-          Evolução {indicator === 'score' ? 'do Score da Unidade' : `do ICM ${indicator.toUpperCase()}`}
+          Evolução {indicator === 'score' ? 'do Score da Unidade' : `do ICM ${(indicator === 'services' ? 'Serviços' : indicator).toUpperCase()}`}
         </h3>
         <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -290,7 +290,7 @@ Gere as análises Interna e Executiva conforme as regras de blocos obrigatórios
               <Line 
                 type="monotone" 
                 dataKey={indicator === 'score' ? 'score' : `${indicator}ICM`} 
-                name={indicator === 'score' ? 'Score Final' : `ICM ${indicator.toUpperCase()}`} 
+                name={indicator === 'score' ? 'Score Final' : `ICM ${(indicator === 'services' ? 'Serviços' : indicator).toUpperCase()}`} 
                 stroke="#0047BA" 
                 strokeWidth={4} 
                 dot={{ r: 6, fill: '#0047BA', strokeWidth: 2, stroke: '#fff' }} 

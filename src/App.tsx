@@ -107,7 +107,7 @@ const INITIAL_STATE: OracleData = {
         meta: 0, realized: 0, icm: 0, gap: 0,
         participation: { meta: 0, realized: 0, achievement: 0 }
       },
-      serviços: { 
+      services: { 
         meta: 0, realized: 0, icm: 0, gap: 0,
         efficiency: { meta: 0, realized: 0, achievement: 0 }
       },
@@ -118,15 +118,15 @@ const INITIAL_STATE: OracleData = {
     },
     healthIndex: 0,
     classification: '',
-    tripleCrownStatus: { mercantil: false, cdc: false, serviços: false }
+    tripleCrownStatus: { mercantil: false, cdc: false, services: false }
   },
   sellers: [],
   distribution: { top1Contribution: 0, top2Contribution: 0, dependencyLevel: '' },
   maturityIndex: { above100Percent: 0, below80Percent: 0, classification: '' },
   projection: { 
-    mercantilProjected: 0, cdcProjected: 0, serviçosProjected: 0, 
-    mercantilGap: 0, cdcGap: 0, serviçosGap: 0,
-    mercantilStatus: 'SEM BASE', cdcStatus: 'SEM BASE', serviçosStatus: 'SEM BASE',
+    mercantilProjected: 0, cdcProjected: 0, servicesProjected: 0, 
+    mercantilGap: 0, cdcGap: 0, servicesGap: 0,
+    mercantilStatus: 'SEM BASE', cdcStatus: 'SEM BASE', servicesStatus: 'SEM BASE',
     probability: '', isAvailable: false,
     daysTotal: 0, daysElapsed: 0
   },

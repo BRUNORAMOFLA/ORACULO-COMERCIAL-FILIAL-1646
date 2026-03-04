@@ -53,9 +53,9 @@ export const CompareMode: React.FC<Props> = ({ history, currentData, periodMode 
 
     if (!dataA || !dataB) return;
 
-    const pillars = ['mercantil', 'cdc', 'serviços'];
+    const pillars = ['mercantil', 'cdc', 'services'];
     const pillarComparisons: PillarComparison[] = pillars.map(p => {
-      const pKey = (p === 'serviços' ? 'services' : p) as 'mercantil' | 'cdc' | 'services';
+      const pKey = p as 'mercantil' | 'cdc' | 'services';
       const baseReal = dataA.store.pillars[pKey].realized;
       const currentReal = dataB.store.pillars[pKey].realized;
       const deltaValue = currentReal - baseReal;
@@ -64,7 +64,7 @@ export const CompareMode: React.FC<Props> = ({ history, currentData, periodMode 
       const currentICM = calcICM(currentReal, dataB.store.pillars[pKey].meta);
 
       return {
-        name: p === 'serviços' ? 'Serviços' : p.charAt(0).toUpperCase() + p.slice(1),
+        name: p.charAt(0).toUpperCase() + p.slice(1),
         baseReal,
         currentReal,
         deltaValue,
@@ -107,7 +107,7 @@ export const CompareMode: React.FC<Props> = ({ history, currentData, periodMode 
 
       const sellerPillars: { [key: string]: any } = {};
       pillars.forEach(p => {
-        const pk = (p === 'serviços' ? 'services' : p) as 'mercantil' | 'cdc' | 'services';
+        const pk = p as 'mercantil' | 'cdc' | 'services';
         const bVal = sA ? sA.pillars[pk].realized : 0;
         const cVal = sB.pillars[pk].realized;
         const bMeta = sA ? sA.pillars[pk].meta : 0;
@@ -142,7 +142,7 @@ export const CompareMode: React.FC<Props> = ({ history, currentData, periodMode 
       if (p.deltaPercent <= -5) {
         let action = "";
         if (p.name === 'CDC') action = "Ação: reforçar CDC na apresentação, com meta diária de ativação por 7 dias e checagem no fechamento.";
-        else if (p.name === 'Serviços') action = "Ação: padronizar anexação de serviços no fechamento e rodar rotina diária por 7 dias.";
+        else if (p.name === 'Services') action = "Ação: padronizar anexação de serviços no fechamento e rodar rotina diária por 7 dias.";
         else action = "Ação: atacar conversão e mix, com plano de recuperação de perdas e foco em giro por 7 dias.";
         
         alerts.push({
@@ -200,16 +200,16 @@ export const CompareMode: React.FC<Props> = ({ history, currentData, periodMode 
     try {
       const merc = comparison.store.pillars.find(p => p.name === 'Mercantil')!;
       const cdc = comparison.store.pillars.find(p => p.name === 'Cdc') || comparison.store.pillars.find(p => p.name === 'CDC')!;
-      const serv = comparison.store.pillars.find(p => p.name === 'Serviços')!;
+      const serv = comparison.store.pillars.find(p => p.name === 'Services') || comparison.store.pillars.find(p => p.name === 'Serviços')!;
 
       const prompt = `
 Analise os seguintes dados da unidade:
 - Crescimento Mercantil: ${formatPercentBR(merc.deltaPercent)}
 - Crescimento CDC: ${formatPercentBR(cdc.deltaPercent)}
-- Crescimento Serviços: ${formatPercentBR(serv.deltaPercent)}
+- Crescimento Services: ${formatPercentBR(serv.deltaPercent)}
 - ICM Mercantil: Base ${merc.baseICM.toFixed(1)}% / Atual ${merc.currentICM.toFixed(1)}%
 - ICM CDC: Base ${cdc.baseICM.toFixed(1)}% / Atual ${cdc.currentICM.toFixed(1)}%
-- ICM Serviços: Base ${serv.baseICM.toFixed(1)}% / Atual ${serv.currentICM.toFixed(1)}%
+- ICM Services: Base ${serv.baseICM.toFixed(1)}% / Atual ${serv.currentICM.toFixed(1)}%
 - Índice de Dependência (Top 2 Share): ${formatPercentBR(comparison.store.top2Share * 100)}
 - Variação Score Global: ${comparison.store.deltaScore.toFixed(1)} pts
 - Movimentação de Ranking: ${comparison.sellers.map(s => `${s.name}: ${s.deltaRank > 0 ? '+' : ''}${s.deltaRank}`).join(', ')}
@@ -364,7 +364,7 @@ Gere o diagnóstico estratégico conforme as regras de 6 blocos obrigatórios.
                 <tr className="text-[10px] font-black uppercase text-zinc-400 border-b">
                   <th className="pb-3 px-2">Vendedor</th>
                   <th className="pb-3 px-2">
-                    {focus === 'score' ? 'Score A/B' : `${focus.toUpperCase()} A/B`}
+                    {focus === 'score' ? 'Score A/B' : `${(focus === 'services' ? 'Serviços' : focus).toUpperCase()} A/B`}
                   </th>
                   <th className="pb-3 px-2">Variação</th>
                   <th className="pb-3 px-2">Ranking A/B</th>
