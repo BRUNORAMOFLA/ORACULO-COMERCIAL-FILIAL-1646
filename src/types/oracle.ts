@@ -188,6 +188,23 @@ export interface StrategicContext {
   impacts: StrategicImpact[];
 }
 
+export interface PeriodContext {
+  mode: PeriodType;
+  startDate?: string;
+  endDate?: string;
+  store: {
+    mercantil: { meta: number; real: number };
+    cdc: { meta: number; real: number };
+    servicos: { meta: number; real: number };
+  };
+  sellers: {
+    name: string;
+    mercantil: { meta: number; real: number };
+    cdc: { meta: number; real: number };
+    servicos: { meta: number; real: number };
+  }[];
+}
+
 export interface OracleData {
   store: Store;
   sellers: Seller[];

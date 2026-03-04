@@ -36,13 +36,15 @@ import {
 import { formatNumberBR, formatCurrencyBR } from '../utils/formatters';
 import { FeedbackModal } from './FeedbackModal';
 import { TripleCrownSellerItem } from './TripleCrownSellerItem';
-import { Seller, OracleResult, HistoryRecord, PeriodType, OracleHistoryV1 } from '../types/oracle';
+import { Seller, OracleResult, HistoryRecord, PeriodType, OracleHistoryV1, PeriodContext } from '../types/oracle';
 import { 
   calculateHealthIndex, 
   classifySeller, 
   calculateBalanceIndex, 
   classifySellerProfile,
-  classifyHealth
+  classifyHealth,
+  calculateICM,
+  calculateDistance
 } from '../calculations/formulas';
 import { IntelligenceRadar } from './IntelligenceRadar';
 import { StrategicCommandPanel } from './StrategicCommandPanel';
@@ -83,8 +85,146 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
   const [selectedPillar, setSelectedPillar] = useState<'mercantil' | 'cdc' | 'services' | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const EXCLUDED_SELLER = 'Caio';
-  const filteredSellers = data.sellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
+  // const EXCLUDED_SELLER = 'Caio';
+  // const filteredSellers = data.sellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
+  const filteredSellers = data.sellers;
+
+  const periodContext = useMemo((): PeriodContext => {
+    const mode = data.store.period.type;
+    const currentMonth = data.store.period.month;
+    const currentYear = data.store.period.year;
+    const startDate = data.store.period.startDate;
+    const endDate = data.store.period.endDate || data.store.period.date;
+
+    let storeData = {
+      mercantil: { meta: data.store.pillars.mercantil.meta, real: data.store.pillars.mercantil.realized },
+      cdc: { meta: data.store.pillars.cdc.meta, real: data.store.pillars.cdc.realized },
+      servicos: { meta: data.store.pillars.services.meta, real: data.store.pillars.services.realized }
+    };
+
+    let sellersData = filteredSellers.map(s => ({
+      name: s.name,
+      mercantil: { meta: s.pillars.mercantil.meta, real: s.pillars.mercantil.realized },
+      cdc: { meta: s.pillars.cdc.meta, real: s.pillars.cdc.realized },
+      servicos: { meta: s.pillars.services.meta, real: s.pillars.services.realized }
+    }));
+
+    if (mode === 'monthly' && fullHistory) {
+      const monthDailyRecords = fullHistory.diario.filter(r => {
+        const p = r.dados.store.period;
+        if (p.type !== 'daily') return false;
+        let recordMonth = p.month;
+        let recordYear = p.year;
+        if (p.date) {
+          const [y, m] = p.date.split('-').map(Number);
+          recordMonth = m;
+          recordYear = y;
+        }
+        return recordMonth === currentMonth && recordYear === currentYear;
+      });
+
+      if (monthDailyRecords.length > 0) {
+        storeData = {
+          mercantil: {
+            meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
+            real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.realized || 0), 0)
+          },
+          cdc: {
+            meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
+            real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.realized || 0), 0)
+          },
+          servicos: {
+            meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
+            real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.realized || 0), 0)
+          }
+        };
+
+        sellersData = filteredSellers.map(seller => {
+          const sellerDailyRecords = monthDailyRecords.map(r => 
+            r.dados.sellers.find(s => s.name?.trim().toLowerCase() === seller.name?.trim().toLowerCase())
+          ).filter(Boolean);
+
+          return {
+            name: seller.name,
+            mercantil: {
+              meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.meta || 0), 0),
+              real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.realized || 0), 0)
+            },
+            cdc: {
+              meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.meta || 0), 0),
+              real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.realized || 0), 0)
+            },
+            servicos: {
+              meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.meta || 0), 0),
+              real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.realized || 0), 0)
+            }
+          };
+        });
+      }
+    }
+
+    return {
+      mode,
+      startDate,
+      endDate,
+      store: storeData,
+      sellers: sellersData
+    };
+  }, [data, fullHistory, filteredSellers]);
+
+  const seasonalScore = useMemo(() => {
+    const icmMerc = calculateICM(periodContext.store.mercantil.real, periodContext.store.mercantil.meta);
+    const icmCdc = calculateICM(periodContext.store.cdc.real, periodContext.store.cdc.meta);
+    const icmServ = calculateICM(periodContext.store.servicos.real, periodContext.store.servicos.meta);
+    
+    const score = calculateHealthIndex(icmMerc, icmCdc, icmServ);
+    
+    return {
+      score,
+      icms: {
+        mercantil: icmMerc,
+        cdc: icmCdc,
+        servicos: icmServ
+      }
+    };
+  }, [periodContext]);
+
+  const seasonalSellers = useMemo(() => {
+    return periodContext.sellers.map(s => {
+      const icmMerc = calculateICM(s.mercantil.real, s.mercantil.meta);
+      const icmCdc = calculateICM(s.cdc.real, s.cdc.meta);
+      const icmServ = calculateICM(s.servicos.real, s.servicos.meta);
+      
+      const score = calculateHealthIndex(icmMerc, icmCdc, icmServ);
+      const originalSeller = filteredSellers.find(fs => fs.name === s.name)!;
+
+      return {
+        ...originalSeller,
+        pillars: {
+          mercantil: { ...originalSeller.pillars.mercantil, icm: icmMerc, meta: s.mercantil.meta, realized: s.mercantil.real },
+          cdc: { ...originalSeller.pillars.cdc, icm: icmCdc, meta: s.cdc.meta, realized: s.cdc.real },
+          services: { ...originalSeller.pillars.services, icm: icmServ, meta: s.servicos.meta, realized: s.servicos.real },
+        },
+        score,
+        classification: classifySeller(score),
+        profile: classifySellerProfile(score, calculateBalanceIndex([icmMerc, icmCdc, icmServ]), [icmMerc, icmCdc, icmServ])
+      };
+    });
+  }, [periodContext, filteredSellers]);
+
+  const healthData = [
+    { name: 'Saúde', value: seasonalScore.score },
+    { name: 'Restante', value: Math.max(0, 100 - seasonalScore.score) },
+  ];
+
+  const COLORS = ['#0047BA', '#f4f4f5'];
+
+  const getHealthColor = (classification: string) => {
+    if (classification.includes('Alta')) return 'text-emerald-600';
+    if (classification.includes('Competitiva')) return 'text-blue-600';
+    if (classification.includes('Atenção')) return 'text-amber-600';
+    return 'text-red-600';
+  };
 
   const periodKey = data.store.period.label.replace(/\s+/g, '_');
   const mvpPhoto = usePhotoStorage(`mvp_photo_${periodKey}`);
@@ -104,80 +244,10 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [activePhotoMenu]);
 
-  const healthData = [
-    { name: 'Saúde', value: data.store.healthIndex },
-    { name: 'Restante', value: Math.max(0, 100 - data.store.healthIndex) },
-  ];
-
-  const COLORS = ['#0047BA', '#f4f4f5'];
-
-  const getHealthColor = (classification: string) => {
-    if (classification.includes('Alta')) return 'text-emerald-600';
-    if (classification.includes('Competitiva')) return 'text-blue-600';
-    if (classification.includes('Atenção')) return 'text-amber-600';
-    return 'text-red-600';
-  };
-
   const tripleCrownSellers = filteredSellers.filter(s => s.isTripleCrown);
   const mvpSeller = filteredSellers.find(s => s.id === data.mvpId);
 
   const filename = `Oraculo_Comercial_${data.store.name}_${data.store.period.label.replace(/\//g, '-')}`;
-
-  // Tooltip Logic
-  const getHealthTooltip = () => {
-    const { pillars, healthIndex, classification } = data.store;
-    return `Saúde calculada com base no ICM médio ponderado dos pilares:
-Mercantil: ${pillars.mercantil.icm.toFixed(1)}%
-CDC: ${pillars.cdc.icm.toFixed(1)}%
-Serviços: ${pillars.services.icm.toFixed(1)}%
-Resultado final: ${healthIndex.toFixed(1)}% classificado como ${classification}.`;
-  };
-
-  const getOperationalTooltip = () => {
-    const { operational } = data.store.pillars;
-    const totalMeta = operational.cards.meta + operational.combos.meta;
-    const totalReal = operational.cards.realized + operational.combos.realized;
-    const percent = totalMeta > 0 ? (totalReal / totalMeta) * 100 : 0;
-
-    if (totalMeta === 0) return "Indicador sem meta definida no período.";
-
-    return `Execução operacional baseada na conversão de Cartões e Combos.
-Meta: ${totalMeta}
-Realizado: ${totalReal}
-Entrega: ${percent.toFixed(1)}%.`;
-  };
-
-  const getDependencyTooltip = () => {
-    const { top1Contribution } = data.distribution;
-    const topSeller = filteredSellers.sort((a, b) => b.score - a.score)[0];
-    return `Dependência calculada com base na concentração de resultado.
-Maior concentração em: ${topSeller?.name || 'N/A'}
-Participação: ${top1Contribution.toFixed(1)}% do total.`;
-  };
-
-  const getProjectionTooltip = () => {
-    const { period, pillars } = data.store;
-    const dailyAvg = period.businessDaysElapsed > 0 ? pillars.mercantil.realized / period.businessDaysElapsed : 0;
-    const remainingDays = period.businessDaysTotal - period.businessDaysElapsed;
-    const projection = data.projection.mercantilProjected;
-    const neededDaily = remainingDays > 0 ? (pillars.mercantil.meta - pillars.mercantil.realized) / remainingDays : 0;
-
-    return `Lógica da Projeção:
-1. Média Diária Atual: ${formatCurrencyBR(dailyAvg)}
-2. Dias Restantes: ${remainingDays}
-3. Projetado: Média x Dias Totais
-4. Média Necessária p/ Meta: ${formatCurrencyBR(Math.max(0, neededDaily))} por dia.`;
-  };
-
-  const getMaturityTooltip = () => {
-    const sorted = [...data.sellers].sort((a, b) => b.score - a.score);
-    const dispersion = sorted.length > 0 ? sorted[0].score - sorted[sorted.length - 1].score : 0;
-    const above90 = data.sellers.length > 0 ? (data.sellers.filter(s => s.score > 90).length / data.sellers.length) * 100 : 0;
-
-    return `Maturidade avaliada pela estabilidade da equipe:
-Desvio entre melhor e pior vendedor: ${dispersion.toFixed(1)} pontos.
-Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
-  };
 
   const getHorizonLabel = (type: PeriodType) => {
     switch (type) {
@@ -207,81 +277,15 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
   const isProjection = data.store.period.status === 'projecao';
   const isPartial = data.store.period.status === 'parcial';
 
-  const seasonalScore = useMemo(() => {
-    if (data.store.period.type !== 'monthly') return data.store.healthIndex;
-
-    const { businessDaysElapsed, businessDaysTotal } = data.store.period;
-    if (businessDaysTotal <= 0) return data.store.healthIndex;
-
-    const ratio = businessDaysElapsed / businessDaysTotal;
-
-    const pillars = ['mercantil', 'cdc', 'services'] as const;
-    const seasonalIcms = pillars.map(p => {
-      const metaMensal = data.store.pillars[p].meta;
-      const metaSazonal = metaMensal * ratio;
-      const realizado = data.store.pillars[p].realized;
-      return metaSazonal > 0 ? (realizado / metaSazonal) * 100 : 0;
-    });
-
-    // Weighted average (40/30/30)
-    const score = (seasonalIcms[0] * 0.4) + (seasonalIcms[1] * 0.3) + (seasonalIcms[2] * 0.3);
-    
-    return {
-      score,
-      icms: {
-        mercantil: seasonalIcms[0],
-        cdc: seasonalIcms[1],
-        services: seasonalIcms[2]
-      }
-    };
-  }, [data]);
-
-  const seasonalSellers = useMemo(() => {
-    const isMonthly = data.store.period.type === 'monthly';
-    if (!isMonthly) return filteredSellers;
-
-    const { businessDaysElapsed, businessDaysTotal } = data.store.period;
-    if (businessDaysTotal <= 0) return filteredSellers;
-    
-    const ratio = businessDaysElapsed / businessDaysTotal;
-
-    return filteredSellers.map(seller => {
-      const mercantilMetaSazonal = seller.pillars.mercantil.meta * ratio;
-      const cdcMetaSazonal = seller.pillars.cdc.meta * ratio;
-      const servicesMetaSazonal = seller.pillars.services.meta * ratio;
-
-      const mercantilIcm = mercantilMetaSazonal > 0 ? (seller.pillars.mercantil.realized / mercantilMetaSazonal) * 100 : 0;
-      const cdcIcm = cdcMetaSazonal > 0 ? (seller.pillars.cdc.realized / cdcMetaSazonal) * 100 : 0;
-      const servicesIcm = servicesMetaSazonal > 0 ? (seller.pillars.services.realized / servicesMetaSazonal) * 100 : 0;
-
-      const score = calculateHealthIndex(mercantilIcm, cdcIcm, servicesIcm);
-      const classification = classifySeller(score);
-      const balanceIndex = calculateBalanceIndex([mercantilIcm, cdcIcm, servicesIcm]);
-      const profile = classifySellerProfile(score, balanceIndex, [mercantilIcm, cdcIcm, servicesIcm]);
-
-      return {
-        ...seller,
-        pillars: {
-          mercantil: { ...seller.pillars.mercantil, icm: mercantilIcm, meta: mercantilMetaSazonal },
-          cdc: { ...seller.pillars.cdc, icm: cdcIcm, meta: cdcMetaSazonal },
-          services: { ...seller.pillars.services, icm: servicesIcm, meta: servicesMetaSazonal },
-        },
-        score,
-        classification,
-        profile
-      };
-    });
-  }, [data, filteredSellers]);
-
   const bottleneckPillars = [
     { id: 'mercantil', label: 'Mercantil' },
     { id: 'cdc', label: 'CDC' },
-    { id: 'services', label: 'Serviços' }
+    { id: 'servicos', label: 'Serviços' }
   ] as const;
 
   const bottleneckAnalysis = bottleneckPillars.map(p => {
-    const pillarData = data.store.pillars[p.id];
-    const distance = Math.max(0, 100 - pillarData.icm);
+    const icm = seasonalScore.icms[p.id];
+    const distance = calculateDistance(icm);
     return { ...p, distance };
   }).sort((a, b) => b.distance - a.distance);
 
@@ -390,20 +394,19 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
             <Trophy size={80} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-2">
-            Score Global {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}
+            Score {periodContext.mode === 'monthly' ? 'Sazonal' : 'Global'}
           </span>
           <div className="text-6xl font-black tracking-tighter mb-2">
-            {(typeof seasonalScore === 'object' ? seasonalScore.score : seasonalScore).toFixed(0)}
+            {seasonalScore.score.toFixed(1)}
           </div>
           <div className="px-4 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest">
-            {data.store.period.type === 'monthly' ? classifyHealth(typeof seasonalScore === 'object' ? seasonalScore.score : seasonalScore) : data.store.classification}
+            {classifyHealth(seasonalScore.score)}
           </div>
         </div>
 
-        {(['mercantil', 'cdc', 'services'] as const).map((p, idx) => {
-          const icm = data.store.period.type === 'monthly' && typeof seasonalScore === 'object'
-            ? seasonalScore.icms[p]
-            : data.store.pillars[p].icm;
+        {(['mercantil', 'cdc', 'servicos'] as const).map((p, idx) => {
+          const icm = seasonalScore.icms[p];
+          const label = p === 'servicos' ? 'Serviços' : p.toUpperCase();
             
           return (
             <div key={p} className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm flex flex-col items-center justify-center relative overflow-hidden group hover:border-primary/30 transition-all">
@@ -411,7 +414,7 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
                 <Target size={80} />
               </div>
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">
-                ICM {p === 'services' ? 'Serviços' : p} {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}
+                ICM {label} {periodContext.mode === 'monthly' ? '(Sazonal)' : ''}
               </span>
               <div className="text-5xl font-black tracking-tighter text-primary mb-2">{icm.toFixed(1)}%</div>
               <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden mt-2">
@@ -427,14 +430,14 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
       </section>
 
       {/* NOVO BLOCO: RITMO SAZONAL */}
-      {fullHistory && data.store.period.type === 'monthly' && (
-        <SeasonalPaceBlock data={data} dailyHistory={fullHistory.diario} />
+      {periodContext.mode === 'monthly' && (
+        <SeasonalPaceBlock context={periodContext} />
       )}
 
       {/* NÍVEL 2 — DIAGNÓSTICO OPERACIONAL */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm space-y-8">
-          <OperationalBottleneckRadar data={data} dailyHistory={fullHistory?.diario} />
+          <OperationalBottleneckRadar context={periodContext} />
         </div>
         <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm space-y-8">
           <TeamDispersionBlock sellers={seasonalSellers} />
@@ -446,11 +449,11 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
         <div className="flex items-center gap-3 mb-4">
           <span className="text-2xl">📊</span>
           <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">
-            Status da Operação {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}:
+            Status da Operação {periodContext.mode === 'monthly' ? '(Sazonal)' : ''}:
           </h3>
         </div>
-        <div className={`text-3xl font-black tracking-tighter ${getOperationStatus(typeof seasonalScore === 'object' ? seasonalScore.score : seasonalScore).color}`}>
-          {getOperationStatus(typeof seasonalScore === 'object' ? seasonalScore.score : seasonalScore).label}
+        <div className={`text-3xl font-black tracking-tighter ${getOperationStatus(seasonalScore.score).color}`}>
+          {getOperationStatus(seasonalScore.score).label}
         </div>
       </div>
 
@@ -697,8 +700,30 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <StrategicPriorityBlock sellers={seasonalSellers} store={data.store} />
-          <CollectiveImpactBlock sellers={seasonalSellers} store={data.store} />
+          <StrategicPriorityBlock 
+            sellers={seasonalSellers} 
+            store={{
+              ...data.store,
+              pillars: {
+                mercantil: { ...data.store.pillars.mercantil, meta: periodContext.store.mercantil.meta, realized: periodContext.store.mercantil.real },
+                cdc: { ...data.store.pillars.cdc, meta: periodContext.store.cdc.meta, realized: periodContext.store.cdc.real },
+                services: { ...data.store.pillars.services, meta: periodContext.store.servicos.meta, realized: periodContext.store.servicos.real },
+                operational: data.store.pillars.operational
+              }
+            }} 
+          />
+          <CollectiveImpactBlock 
+            sellers={seasonalSellers} 
+            store={{
+              ...data.store,
+              pillars: {
+                mercantil: { ...data.store.pillars.mercantil, meta: periodContext.store.mercantil.meta, realized: periodContext.store.mercantil.real },
+                cdc: { ...data.store.pillars.cdc, meta: periodContext.store.cdc.meta, realized: periodContext.store.cdc.real },
+                services: { ...data.store.pillars.services, meta: periodContext.store.servicos.meta, realized: periodContext.store.servicos.real },
+                operational: data.store.pillars.operational
+              }
+            }} 
+          />
         </div>
       </section>
 
@@ -1050,10 +1075,10 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pt-8">
               <span className="text-5xl font-black text-primary">
-                {(typeof seasonalScore === 'object' ? seasonalScore.score : seasonalScore).toFixed(0)}
+                {seasonalScore.score.toFixed(1)}
               </span>
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                Score Global {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-center">
+                Score {periodContext.mode === 'monthly' ? 'Sazonal' : 'Global'}
               </span>
             </div>
           </div>
@@ -1069,17 +1094,17 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
               <BarChart data={[
                 { 
                   name: 'Mercantil', 
-                  icm: data.store.period.type === 'monthly' && typeof seasonalScore === 'object' ? seasonalScore.icms.mercantil : data.store.pillars.mercantil.icm, 
+                  icm: seasonalScore.icms.mercantil, 
                   proj: data.projection.mercantilProjected / (data.store.pillars.mercantil.meta || 1) * 100 
                 },
                 { 
                   name: 'CDC', 
-                  icm: data.store.period.type === 'monthly' && typeof seasonalScore === 'object' ? seasonalScore.icms.cdc : data.store.pillars.cdc.icm, 
+                  icm: seasonalScore.icms.cdc, 
                   proj: data.projection.cdcProjected / (data.store.pillars.cdc.meta || 1) * 100 
                 },
                 { 
                   name: 'Serviços', 
-                  icm: data.store.period.type === 'monthly' && typeof seasonalScore === 'object' ? seasonalScore.icms.services : data.store.pillars.services.icm, 
+                  icm: seasonalScore.icms.servicos, 
                   proj: data.projection.servicesProjected / (data.store.pillars.services.meta || 1) * 100 
                 },
               ]}>

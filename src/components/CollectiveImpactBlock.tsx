@@ -14,10 +14,7 @@ export const CollectiveImpactBlock: React.FC<Props> = ({ sellers, store }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const analysis = useMemo(() => {
-    const EXCLUDED_SELLER = 'Caio';
-    const filteredSellers = sellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
-
-    return filteredSellers.map(s => {
+    return sellers.map(s => {
       const pillars = [
         { name: 'mercantil', realized: s.pillars.mercantil.realized, icm: s.pillars.mercantil.icm },
         { name: 'cdc', realized: s.pillars.cdc.realized, icm: s.pillars.cdc.icm },

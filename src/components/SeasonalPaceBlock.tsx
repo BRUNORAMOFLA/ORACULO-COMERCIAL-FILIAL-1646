@@ -1,49 +1,24 @@
 
 import React, { useMemo } from 'react';
-import { HistoryRecord, OracleResult } from '../types/oracle';
+import { PeriodContext } from '../types/oracle';
 import { motion } from 'motion/react';
 import { Clock, TrendingUp, TrendingDown, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { formatCurrencyBR } from '../utils/formatters';
+import { calculateICM } from '../calculations/formulas';
 
 interface Props {
-  data: OracleResult;
-  dailyHistory: HistoryRecord[];
+  context: PeriodContext;
 }
 
-export const SeasonalPaceBlock: React.FC<Props> = ({ data, dailyHistory }) => {
+export const SeasonalPaceBlock: React.FC<Props> = ({ context }) => {
   const seasonalAnalysis = useMemo(() => {
-    const currentMonth = data.store.period.month;
-    const currentYear = data.store.period.year;
-
-    // Filter daily records for the current month
-    const monthDailyRecords = dailyHistory.filter(r => {
-      const p = r.dados.store.period;
-      if (p.type !== 'daily') return false;
-      
-      // Derive month/year from date if they are missing or for extra safety
-      let recordMonth = p.month;
-      let recordYear = p.year;
-      
-      if (p.date) {
-        const [y, m] = p.date.split('-').map(Number);
-        recordMonth = m;
-        recordYear = y;
-      }
-      
-      return recordMonth === currentMonth && recordYear === currentYear;
-    });
-
-    const pillars = ['mercantil', 'cdc', 'services'] as const;
+    const pillars = ['mercantil', 'cdc', 'servicos'] as const;
 
     return pillars.map(p => {
-      const expectedAccumulatedMeta = monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars[p].meta || 0), 0);
-      const accumulatedRealized = monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars[p].realized || 0), 0);
+      const expectedAccumulatedMeta = context.store[p].meta;
+      const accumulatedRealized = context.store[p].real;
       const gapSazonal = accumulatedRealized - expectedAccumulatedMeta;
-      
-      // Visual indicator logic:
-      // Verde → acima do ritmo (Realized >= Meta)
-      // Amarelo → até 5% abaixo (Realized >= 0.95 * Meta)
-      // Vermelho → mais de 5% abaixo (Realized < 0.95 * Meta)
+      const icm = calculateICM(accumulatedRealized, expectedAccumulatedMeta);
       
       let status: 'above' | 'warning' | 'critical' = 'above';
       if (accumulatedRealized < expectedAccumulatedMeta) {
@@ -56,16 +31,17 @@ export const SeasonalPaceBlock: React.FC<Props> = ({ data, dailyHistory }) => {
 
       return {
         id: p,
-        label: p === 'services' ? 'Serviços' : p.toUpperCase(),
+        label: p === 'servicos' ? 'Serviços' : p.toUpperCase(),
         expectedAccumulatedMeta,
         accumulatedRealized,
         gapSazonal,
+        icm,
         status
       };
     });
-  }, [data, dailyHistory]);
+  }, [context]);
 
-  if (data.store.period.type !== 'monthly') return null;
+  if (context.mode !== 'monthly') return null;
 
   return (
     <section className="space-y-6">
@@ -107,6 +83,12 @@ export const SeasonalPaceBlock: React.FC<Props> = ({ data, dailyHistory }) => {
               <div className="flex justify-between items-center">
                 <span className="text-[8px] font-bold text-zinc-400 uppercase">Realizado Acumulado</span>
                 <span className="text-xs font-black text-primary">{formatCurrencyBR(item.accumulatedRealized)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[8px] font-bold text-zinc-400 uppercase">ICM Sazonal</span>
+                <span className={`text-xs font-black ${item.icm >= 100 ? 'text-emerald-600' : item.icm >= 95 ? 'text-amber-600' : 'text-accent'}`}>
+                  {item.icm.toFixed(1)}%
+                </span>
               </div>
               <div className="pt-2 border-t border-zinc-100 flex justify-between items-center">
                 <span className="text-[8px] font-black text-zinc-400 uppercase">Gap Sazonal</span>

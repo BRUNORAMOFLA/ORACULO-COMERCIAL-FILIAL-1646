@@ -14,10 +14,7 @@ export const StrategicPriorityBlock: React.FC<Props> = ({ sellers, store }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const analysis = useMemo(() => {
-    const EXCLUDED_SELLER = 'Caio';
-    const filteredSellers = sellers.filter(s => s.name?.toLowerCase() !== EXCLUDED_SELLER.toLowerCase());
-
-    return filteredSellers.map(s => {
+    return sellers.map(s => {
       const icms = [
         { name: 'mercantil', value: s.pillars.mercantil.icm },
         { name: 'cdc', value: s.pillars.cdc.icm },
