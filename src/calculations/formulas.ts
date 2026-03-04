@@ -30,9 +30,8 @@ export function classifyHealth(index: number): string {
 
 export function classifySeller(score: number): string {
   if (score >= 90) return 'Elite';
-  if (score >= 80) return 'Alto Contribuidor';
+  if (score >= 80) return 'Alto';
   if (score >= 70) return 'Parcial';
-  if (score >= 60) return 'Oscilante';
   return 'Risco';
 }
 

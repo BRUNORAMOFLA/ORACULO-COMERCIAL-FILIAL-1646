@@ -41,7 +41,8 @@ import {
   calculateHealthIndex, 
   classifySeller, 
   calculateBalanceIndex, 
-  classifySellerProfile 
+  classifySellerProfile,
+  classifyHealth
 } from '../calculations/formulas';
 import { IntelligenceRadar } from './IntelligenceRadar';
 import { StrategicCommandPanel } from './StrategicCommandPanel';
@@ -207,76 +208,51 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
   const isPartial = data.store.period.status === 'parcial';
 
   const seasonalScore = useMemo(() => {
-    if (!fullHistory) return data.store.healthIndex;
+    if (data.store.period.type !== 'monthly') return data.store.healthIndex;
 
-    const currentMonth = data.store.period.month;
-    const currentYear = data.store.period.year;
+    const { businessDaysElapsed, businessDaysTotal } = data.store.period;
+    if (businessDaysTotal <= 0) return data.store.healthIndex;
 
-    const monthDailyRecords = fullHistory.diario.filter(r => {
-      const per = r.dados.store.period;
-      if (per.type !== 'daily') return false;
-      let recordMonth = per.month;
-      let recordYear = per.year;
-      if (per.date) {
-        const [y, m] = per.date.split('-').map(Number);
-        recordMonth = m;
-        recordYear = y;
-      }
-      return recordMonth === currentMonth && recordYear === currentYear;
-    });
-
-    if (monthDailyRecords.length === 0) return data.store.healthIndex;
+    const ratio = businessDaysElapsed / businessDaysTotal;
 
     const pillars = ['mercantil', 'cdc', 'services'] as const;
     const seasonalIcms = pillars.map(p => {
-      const expected = monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars[p].meta || 0), 0);
-      const realized = monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars[p].realized || 0), 0);
-      return expected > 0 ? (realized / expected) * 100 : 0;
+      const metaMensal = data.store.pillars[p].meta;
+      const metaSazonal = metaMensal * ratio;
+      const realizado = data.store.pillars[p].realized;
+      return metaSazonal > 0 ? (realizado / metaSazonal) * 100 : 0;
     });
 
     // Weighted average (40/30/30)
-    return (seasonalIcms[0] * 0.4) + (seasonalIcms[1] * 0.3) + (seasonalIcms[2] * 0.3);
-  }, [data, fullHistory]);
+    const score = (seasonalIcms[0] * 0.4) + (seasonalIcms[1] * 0.3) + (seasonalIcms[2] * 0.3);
+    
+    return {
+      score,
+      icms: {
+        mercantil: seasonalIcms[0],
+        cdc: seasonalIcms[1],
+        services: seasonalIcms[2]
+      }
+    };
+  }, [data]);
 
   const seasonalSellers = useMemo(() => {
     const isMonthly = data.store.period.type === 'monthly';
-    if (!isMonthly || !fullHistory) return filteredSellers;
+    if (!isMonthly) return filteredSellers;
 
-    const currentMonth = data.store.period.month;
-    const currentYear = data.store.period.year;
-
-    const monthDailyRecords = fullHistory.diario.filter(r => {
-      const per = r.dados.store.period;
-      if (per.type !== 'daily') return false;
-      let recordMonth = per.month;
-      let recordYear = per.year;
-      if (per.date) {
-        const [y, m] = per.date.split('-').map(Number);
-        recordMonth = m;
-        recordYear = y;
-      }
-      return recordMonth === currentMonth && recordYear === currentYear;
-    });
-
-    if (monthDailyRecords.length === 0) return filteredSellers;
+    const { businessDaysElapsed, businessDaysTotal } = data.store.period;
+    if (businessDaysTotal <= 0) return filteredSellers;
+    
+    const ratio = businessDaysElapsed / businessDaysTotal;
 
     return filteredSellers.map(seller => {
-      const sellerDailyRecords = monthDailyRecords.map(r => 
-        r.dados.sellers.find(s => s.name === seller.name)
-      ).filter(Boolean);
+      const mercantilMetaSazonal = seller.pillars.mercantil.meta * ratio;
+      const cdcMetaSazonal = seller.pillars.cdc.meta * ratio;
+      const servicesMetaSazonal = seller.pillars.services.meta * ratio;
 
-      if (sellerDailyRecords.length === 0) return seller;
-
-      const mercantilMeta = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.meta || 0), 0);
-      const mercantilReal = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.realized || 0), 0);
-      const cdcMeta = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.meta || 0), 0);
-      const cdcReal = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.realized || 0), 0);
-      const servicesMeta = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.meta || 0), 0);
-      const servicesReal = sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.realized || 0), 0);
-
-      const mercantilIcm = mercantilMeta > 0 ? (mercantilReal / mercantilMeta) * 100 : 0;
-      const cdcIcm = cdcMeta > 0 ? (cdcReal / cdcMeta) * 100 : 0;
-      const servicesIcm = servicesMeta > 0 ? (servicesReal / servicesMeta) * 100 : 0;
+      const mercantilIcm = mercantilMetaSazonal > 0 ? (seller.pillars.mercantil.realized / mercantilMetaSazonal) * 100 : 0;
+      const cdcIcm = cdcMetaSazonal > 0 ? (seller.pillars.cdc.realized / cdcMetaSazonal) * 100 : 0;
+      const servicesIcm = servicesMetaSazonal > 0 ? (seller.pillars.services.realized / servicesMetaSazonal) * 100 : 0;
 
       const score = calculateHealthIndex(mercantilIcm, cdcIcm, servicesIcm);
       const classification = classifySeller(score);
@@ -286,16 +262,16 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
       return {
         ...seller,
         pillars: {
-          mercantil: { ...seller.pillars.mercantil, icm: mercantilIcm, realized: mercantilReal, meta: mercantilMeta },
-          cdc: { ...seller.pillars.cdc, icm: cdcIcm, realized: cdcReal, meta: cdcMeta },
-          services: { ...seller.pillars.services, icm: servicesIcm, realized: servicesReal, meta: servicesMeta },
+          mercantil: { ...seller.pillars.mercantil, icm: mercantilIcm, meta: mercantilMetaSazonal },
+          cdc: { ...seller.pillars.cdc, icm: cdcIcm, meta: cdcMetaSazonal },
+          services: { ...seller.pillars.services, icm: servicesIcm, meta: servicesMetaSazonal },
         },
         score,
         classification,
         profile
       };
     });
-  }, [data, fullHistory, filteredSellers]);
+  }, [data, filteredSellers]);
 
   const bottleneckPillars = [
     { id: 'mercantil', label: 'Mercantil' },
@@ -413,29 +389,41 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
             <Trophy size={80} />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-2">Score Global</span>
-          <div className="text-6xl font-black tracking-tighter mb-2">{data.store.healthIndex.toFixed(0)}</div>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-2">
+            Score Global {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}
+          </span>
+          <div className="text-6xl font-black tracking-tighter mb-2">
+            {(typeof seasonalScore === 'object' ? seasonalScore.score : seasonalScore).toFixed(0)}
+          </div>
           <div className="px-4 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest">
-            {data.store.classification}
+            {data.store.period.type === 'monthly' ? classifyHealth(typeof seasonalScore === 'object' ? seasonalScore.score : seasonalScore) : data.store.classification}
           </div>
         </div>
 
-        {(['mercantil', 'cdc', 'services'] as const).map((p, idx) => (
-          <div key={p} className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm flex flex-col items-center justify-center relative overflow-hidden group hover:border-primary/30 transition-all">
-            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-500">
-              <Target size={80} />
+        {(['mercantil', 'cdc', 'services'] as const).map((p, idx) => {
+          const icm = data.store.period.type === 'monthly' && typeof seasonalScore === 'object'
+            ? seasonalScore.icms[p]
+            : data.store.pillars[p].icm;
+            
+          return (
+            <div key={p} className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm flex flex-col items-center justify-center relative overflow-hidden group hover:border-primary/30 transition-all">
+              <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-500">
+                <Target size={80} />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">
+                ICM {p === 'services' ? 'Serviços' : p} {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}
+              </span>
+              <div className="text-5xl font-black tracking-tighter text-primary mb-2">{icm.toFixed(1)}%</div>
+              <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden mt-2">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, icm)}%` }}
+                  className={`h-full ${icm >= 100 ? 'bg-emerald-500' : icm >= 80 ? 'bg-amber-500' : 'bg-accent'}`}
+                />
+              </div>
             </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">ICM {p === 'services' ? 'Serviços' : p}</span>
-            <div className="text-5xl font-black tracking-tighter text-primary mb-2">{data.store.pillars[p].icm.toFixed(1)}%</div>
-            <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden mt-2">
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.min(100, data.store.pillars[p].icm)}%` }}
-                className={`h-full ${data.store.pillars[p].icm >= 100 ? 'bg-emerald-500' : data.store.pillars[p].icm >= 80 ? 'bg-amber-500' : 'bg-accent'}`}
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </section>
 
       {/* NOVO BLOCO: RITMO SAZONAL */}
@@ -457,10 +445,12 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
       <div className="bg-white p-8 rounded-3xl border-2 border-dashed border-zinc-100 shadow-sm">
         <div className="flex items-center gap-3 mb-4">
           <span className="text-2xl">📊</span>
-          <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Status da Operação (Sazonal):</h3>
+          <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">
+            Status da Operação {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}:
+          </h3>
         </div>
-        <div className={`text-3xl font-black tracking-tighter ${getOperationStatus(seasonalScore).color}`}>
-          {getOperationStatus(seasonalScore).label}
+        <div className={`text-3xl font-black tracking-tighter ${getOperationStatus(typeof seasonalScore === 'object' ? seasonalScore.score : seasonalScore).color}`}>
+          {getOperationStatus(typeof seasonalScore === 'object' ? seasonalScore.score : seasonalScore).label}
         </div>
       </div>
 
@@ -675,7 +665,7 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
                         <div className="flex items-center gap-2">
                           <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${
                             s.classification === 'Elite' ? 'bg-emerald-50 text-emerald-700' :
-                            s.classification === 'Alto Contribuidor' ? 'bg-primary/10 text-primary' :
+                            s.classification === 'Alto' ? 'bg-primary/10 text-primary' :
                             s.classification === 'Parcial' ? 'bg-amber-50 text-amber-700' :
                             'bg-accent/10 text-accent'
                           }`}>
@@ -707,8 +697,8 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <StrategicPriorityBlock sellers={data.sellers} store={data.store} />
-          <CollectiveImpactBlock sellers={data.sellers} store={data.store} />
+          <StrategicPriorityBlock sellers={seasonalSellers} store={data.store} />
+          <CollectiveImpactBlock sellers={seasonalSellers} store={data.store} />
         </div>
       </section>
 
@@ -1059,21 +1049,39 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pt-8">
-              <span className="text-5xl font-black text-primary">{data.store.healthIndex.toFixed(0)}</span>
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Score Global</span>
+              <span className="text-5xl font-black text-primary">
+                {(typeof seasonalScore === 'object' ? seasonalScore.score : seasonalScore).toFixed(0)}
+              </span>
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                Score Global {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Pillars Performance */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-primary/10 shadow-sm">
-          <h3 className="text-xs font-bold uppercase text-zinc-400 mb-6">Execução por Pilar</h3>
+          <h3 className="text-xs font-bold uppercase text-zinc-400 mb-6">
+            Execução por Pilar {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}
+          </h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={[
-                { name: 'Mercantil', icm: data.store.pillars.mercantil.icm, proj: data.projection.mercantilProjected / (data.store.pillars.mercantil.meta || 1) * 100 },
-                { name: 'CDC', icm: data.store.pillars.cdc.icm, proj: data.projection.cdcProjected / (data.store.pillars.cdc.meta || 1) * 100 },
-                { name: 'Serviços', icm: data.store.pillars.services.icm, proj: data.projection.servicesProjected / (data.store.pillars.services.meta || 1) * 100 },
+                { 
+                  name: 'Mercantil', 
+                  icm: data.store.period.type === 'monthly' && typeof seasonalScore === 'object' ? seasonalScore.icms.mercantil : data.store.pillars.mercantil.icm, 
+                  proj: data.projection.mercantilProjected / (data.store.pillars.mercantil.meta || 1) * 100 
+                },
+                { 
+                  name: 'CDC', 
+                  icm: data.store.period.type === 'monthly' && typeof seasonalScore === 'object' ? seasonalScore.icms.cdc : data.store.pillars.cdc.icm, 
+                  proj: data.projection.cdcProjected / (data.store.pillars.cdc.meta || 1) * 100 
+                },
+                { 
+                  name: 'Serviços', 
+                  icm: data.store.period.type === 'monthly' && typeof seasonalScore === 'object' ? seasonalScore.icms.services : data.store.pillars.services.icm, 
+                  proj: data.projection.servicesProjected / (data.store.pillars.services.meta || 1) * 100 
+                },
               ]}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f1f1" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={11} fontWeight={700} />
