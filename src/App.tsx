@@ -488,7 +488,7 @@ export default function App() {
                 </div>
               </div>
 
-              <Dashboard data={processedData} history={currentHistory} />
+              <Dashboard data={processedData} history={currentHistory} fullHistory={history} />
               
               <AISummary data={processedData} />
             </motion.div>

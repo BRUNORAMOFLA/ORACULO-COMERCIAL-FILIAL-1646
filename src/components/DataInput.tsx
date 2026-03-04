@@ -31,6 +31,14 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
   const updateStorePeriod = (field: string, value: any) => {
     const newPeriod = JSON.parse(JSON.stringify(data.store.period));
     newPeriod[field] = value;
+    
+    // Automatically update month and year if date changes for daily records
+    if (field === 'date' && value) {
+      const [y, m] = value.split('-').map(Number);
+      newPeriod.month = m;
+      newPeriod.year = y;
+    }
+    
     onPeriodChangeRequest(newPeriod);
   };
 

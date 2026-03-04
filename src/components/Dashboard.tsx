@@ -36,13 +36,14 @@ import {
 import { formatNumberBR, formatCurrencyBR } from '../utils/formatters';
 import { FeedbackModal } from './FeedbackModal';
 import { TripleCrownSellerItem } from './TripleCrownSellerItem';
-import { Seller, OracleResult, HistoryRecord, PeriodType } from '../types/oracle';
+import { Seller, OracleResult, HistoryRecord, PeriodType, OracleHistoryV1 } from '../types/oracle';
 import { IntelligenceRadar } from './IntelligenceRadar';
 import { StrategicCommandPanel } from './StrategicCommandPanel';
 import { StrategicPriorityBlock } from './StrategicPriorityBlock';
 import { CollectiveImpactBlock } from './CollectiveImpactBlock';
 import { OperationalBottleneckRadar } from './OperationalBottleneckRadar';
 import { TeamDispersionBlock } from './TeamDispersionBlock';
+import { SeasonalPaceBlock } from './SeasonalPaceBlock';
 import { 
   exportToExcel, 
   exportToPDF, 
@@ -64,9 +65,10 @@ import {
 interface Props {
   data: OracleResult;
   history: HistoryRecord[];
+  fullHistory?: OracleHistoryV1;
 }
 
-export const Dashboard: React.FC<Props> = ({ data, history }) => {
+export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
   const [activeTab, setActiveTab] = useState<'crown' | 'mvp'>('crown');
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -338,6 +340,11 @@ Percentual de vendedores acima de 90%: ${above90.toFixed(1)}%.`;
           </div>
         ))}
       </section>
+
+      {/* NOVO BLOCO: RITMO SAZONAL */}
+      {fullHistory && data.store.period.type === 'monthly' && (
+        <SeasonalPaceBlock data={data} dailyHistory={fullHistory.diario} />
+      )}
 
       {/* NÍVEL 2 — DIAGNÓSTICO OPERACIONAL */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
