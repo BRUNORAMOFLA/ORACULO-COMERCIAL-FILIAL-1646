@@ -96,6 +96,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
     const startDate = data.store.period.startDate;
     const endDate = data.store.period.endDate || data.store.period.date;
 
+    // Initial fallback data (from the current report)
     let storeData = {
       mercantil: { meta: data.store.pillars.mercantil.meta, real: data.store.pillars.mercantil.realized },
       cdc: { meta: data.store.pillars.cdc.meta, real: data.store.pillars.cdc.realized },
@@ -109,73 +110,80 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
       services: { meta: s.pillars.services.meta, real: s.pillars.services.realized }
     }));
 
-    if (mode === 'monthly') {
-      // For monthly mode, we MUST use the sum of daily records for seasonal store metrics
-      // but the period meta for sellers.
-      
-      if (fullHistory && fullHistory.diario) {
-        const monthDailyRecords = fullHistory.diario.filter(r => {
-          const p = r.dados.store.period;
-          if (p.type !== 'daily') return false;
+    // If we have daily history, we MUST use it to calculate seasonal sums
+    if (fullHistory && fullHistory.diario) {
+      const periodDailyRecords = fullHistory.diario.filter(r => {
+        const p = r.dados.store.period;
+        if (p.type !== 'daily') return false;
+        
+        const recordDate = p.date;
+        if (!recordDate) return false;
+
+        if (mode === 'daily') {
+          return recordDate === data.store.period.date;
+        }
+        if (mode === 'weekly') {
+          return recordDate >= (startDate || '') && recordDate <= (endDate || '');
+        }
+        if (mode === 'monthly') {
           let recordMonth = p.month;
           let recordYear = p.year;
-          if (p.date) {
-            const [y, m] = p.date.split('-').map(Number);
-            recordMonth = m;
-            recordYear = y;
-          }
+          const [y, m] = recordDate.split('-').map(Number);
+          recordMonth = m;
+          recordYear = y;
           return recordMonth === currentMonth && recordYear === currentYear;
-        });
+        }
+        return false;
+      });
 
-        if (monthDailyRecords.length > 0) {
-          // Store: Seasonal Meta = Sum of Daily Metas, Seasonal Realized = Sum of Daily Realized
-          storeData = {
+      if (periodDailyRecords.length > 0) {
+        // 1. Calculate Sellers Data first (Sum of Daily Metas and Realized)
+        sellersData = filteredSellers.map(seller => {
+          const sellerDailyRecords = periodDailyRecords.map(r => 
+            r.dados.sellers.find(s => s.name?.trim().toLowerCase() === seller.name?.trim().toLowerCase())
+          ).filter(Boolean);
+
+          return {
+            name: seller.name,
             mercantil: {
-              meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
-              real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.realized || 0), 0)
+              meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.meta || 0), 0),
+              real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.realized || 0), 0)
             },
             cdc: {
-              meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
-              real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.realized || 0), 0)
+              meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.meta || 0), 0),
+              real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.realized || 0), 0)
             },
             services: {
-              meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
-              real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.realized || 0), 0)
+              meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.meta || 0), 0),
+              real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.realized || 0), 0)
             }
           };
+        });
 
-          // Sellers: Period Meta = Monthly Meta, Seasonal Realized = Sum of Daily Realized
-          sellersData = filteredSellers.map(seller => {
-            const sellerDailyRecords = monthDailyRecords.map(r => 
-              r.dados.sellers.find(s => s.name?.trim().toLowerCase() === seller.name?.trim().toLowerCase())
-            ).filter(Boolean);
+        // 2. Calculate Store Data (Sum of Daily Metas, and Realized from Sellers Sum for consistency)
+        storeData = {
+          mercantil: {
+            meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
+            real: sellersData.reduce((acc, s) => acc + s.mercantil.real, 0)
+          },
+          cdc: {
+            meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
+            real: sellersData.reduce((acc, s) => acc + s.cdc.real, 0)
+          },
+          services: {
+            meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
+            real: sellersData.reduce((acc, s) => acc + s.services.real, 0)
+          }
+        };
 
-            return {
-              name: seller.name,
-              mercantil: {
-                meta: seller.pillars.mercantil.meta, // Period Meta
-                real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.realized || 0), 0)
-              },
-              cdc: {
-                meta: seller.pillars.cdc.meta, // Period Meta
-                real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.realized || 0), 0)
-              },
-              services: {
-                meta: seller.pillars.services.meta, // Period Meta
-                real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.realized || 0), 0)
-              }
-            };
-          });
-
-          // Validation Rule: Check for inconsistencies
-          (['mercantil', 'cdc', 'services'] as const).forEach(p => {
-            const summed = storeData[p].real;
-            const reported = data.store.pillars[p].realized;
-            if (Math.abs(summed - reported) > 1) {
-              console.error(`INCONSISTÊNCIA DE BASE: Pilar ${p} - Soma Diária (${summed}) vs Reportado (${reported})`);
-            }
-          });
-        }
+        // Validation Rule: Check for inconsistencies with reported totals
+        (['mercantil', 'cdc', 'services'] as const).forEach(p => {
+          const summed = storeData[p].real;
+          const reported = data.store.pillars[p].realized;
+          if (Math.abs(summed - reported) > 1) {
+            console.warn(`DIVERGÊNCIA SAZONAL: Pilar ${p} - Soma Vendedores (${summed}) vs Reportado (${reported}). Utilizando Soma para consistência.`);
+          }
+        });
       }
     }
 
@@ -227,6 +235,33 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
       };
     });
   }, [periodContext, filteredSellers]);
+
+  const seasonalData = useMemo(() => {
+    return {
+      ...data,
+      store: {
+        ...data.store,
+        pillars: {
+          mercantil: { ...data.store.pillars.mercantil, meta: periodContext.store.mercantil.meta, realized: periodContext.store.mercantil.real, icm: seasonalScore.icms.mercantil },
+          cdc: { ...data.store.pillars.cdc, meta: periodContext.store.cdc.meta, realized: periodContext.store.cdc.real, icm: seasonalScore.icms.cdc },
+          services: { ...data.store.pillars.services, meta: periodContext.store.services.meta, realized: periodContext.store.services.real, icm: seasonalScore.icms.services },
+          operational: data.store.pillars.operational
+        },
+        healthIndex: seasonalScore.score,
+        classification: classifyHealth(seasonalScore.score)
+      },
+      sellers: seasonalSellers,
+      intelligence: data.intelligence ? {
+        ...data.intelligence,
+        healthScore: seasonalScore.score,
+        healthReading: classifyHealth(seasonalScore.score)
+      } : undefined,
+      strategicContext: data.strategicContext ? {
+        ...data.strategicContext,
+        mode: periodContext.mode.toUpperCase() as any
+      } : undefined
+    } as OracleResult;
+  }, [data, periodContext, seasonalScore, seasonalSellers]);
 
   const healthData = [
     { name: 'Saúde', value: seasonalScore.score },
@@ -401,7 +436,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         </div>
       </div>
 
-      <IntelligenceRadar data={data} />
+      <IntelligenceRadar data={seasonalData} />
 
       {/* NÍVEL 1 — SITUAÇÃO DA LOJA */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -625,8 +660,8 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         </div>
 
         {/* STRATEGIC CONTEXT BLOCKS */}
-        {data.strategicContext && (
-          <StrategicCommandPanel context={data.strategicContext} />
+        {seasonalData.strategicContext && (
+          <StrategicCommandPanel context={seasonalData.strategicContext} />
         )}
 
         {/* Seller Rankings */}
@@ -718,27 +753,11 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <StrategicPriorityBlock 
             sellers={seasonalSellers} 
-            store={{
-              ...data.store,
-              pillars: {
-                mercantil: { ...data.store.pillars.mercantil, meta: periodContext.store.mercantil.meta, realized: periodContext.store.mercantil.real },
-                cdc: { ...data.store.pillars.cdc, meta: periodContext.store.cdc.meta, realized: periodContext.store.cdc.real },
-                services: { ...data.store.pillars.services, meta: periodContext.store.services.meta, realized: periodContext.store.services.real },
-                operational: data.store.pillars.operational
-              }
-            }} 
+            store={seasonalData.store} 
           />
           <CollectiveImpactBlock 
             sellers={seasonalSellers} 
-            store={{
-              ...data.store,
-              pillars: {
-                mercantil: { ...data.store.pillars.mercantil, meta: periodContext.store.mercantil.meta, realized: periodContext.store.mercantil.real },
-                cdc: { ...data.store.pillars.cdc, meta: periodContext.store.cdc.meta, realized: periodContext.store.cdc.real },
-                services: { ...data.store.pillars.services, meta: periodContext.store.services.meta, realized: periodContext.store.services.real },
-                operational: data.store.pillars.operational
-              }
-            }} 
+            store={seasonalData.store} 
           />
         </div>
       </section>
