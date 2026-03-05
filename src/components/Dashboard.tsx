@@ -237,8 +237,15 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
   }, [periodContext, filteredSellers]);
 
   const seasonalData = useMemo(() => {
+    const sortedSeasonal = [...seasonalSellers].sort((a, b) => b.score - a.score);
+    const mvp = sortedSeasonal[0];
+
     return {
       ...data,
+      mvpId: mvp?.id || data.mvpId,
+      mvpJustification: mvp 
+        ? `${mvp.name} atingiu o Score Sazonal mais alto (${mvp.score.toFixed(1)}%), demonstrando consistência acumulada no período.`
+        : data.mvpJustification,
       store: {
         ...data.store,
         pillars: {
@@ -296,7 +303,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
   }, [activePhotoMenu]);
 
   const tripleCrownSellers = seasonalSellers.filter(s => s.isTripleCrown);
-  const mvpSeller = seasonalSellers.find(s => s.id === data.mvpId);
+  const mvpSeller = seasonalSellers.find(s => s.id === seasonalData.mvpId);
 
   const filename = `Oraculo_Comercial_${seasonalData.store.name}_${seasonalData.store.period.label.replace(/\//g, '-')}`;
 
@@ -1039,7 +1046,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                         </button>
                       </div>
                       <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
-                        <p className="text-xs text-zinc-600 leading-relaxed italic">"{data.mvpJustification}"</p>
+                        <p className="text-xs text-zinc-600 leading-relaxed italic">"{seasonalData.mvpJustification}"</p>
                       </div>
                       <div className="flex justify-center md:justify-start gap-4">
                         <div className="text-center">

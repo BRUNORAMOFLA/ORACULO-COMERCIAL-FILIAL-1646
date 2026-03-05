@@ -7,6 +7,7 @@ import { AISummary } from './components/AISummary';
 import { DataImporter } from './components/DataImporter';
 import { OracleData, OracleHistory, HistoryRecord, Period, OracleHistoryV1 } from './types/oracle';
 import { processOracle } from './logic/oracleProcessor';
+import { getSeasonalData } from './logic/seasonalProcessor';
 import { motion, AnimatePresence } from 'motion/react';
 import { CrystalBall } from './components/CrystalBall';
 import { LayoutDashboard, FileInput, Info, Save, Clock, RotateCcw, History, CheckCircle2, AlertCircle, TrendingUp } from 'lucide-react';
@@ -171,7 +172,10 @@ export default function App() {
     return history.mensal;
   }, [history, periodMode]);
 
-  const processedData = useMemo(() => processOracle(data, currentHistory), [data, currentHistory]);
+  const processedData = useMemo(() => {
+    const baseData = processOracle(data, currentHistory);
+    return getSeasonalData(baseData, history);
+  }, [data, currentHistory, history]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
