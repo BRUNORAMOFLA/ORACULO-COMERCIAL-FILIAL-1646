@@ -58,7 +58,7 @@ export const IntelligenceRadar: React.FC<Props> = ({ data }) => {
   const getRisingSellerTooltip = () => {
     const seller = sellers.find(s => s.name === radar.risingSeller);
     if (!seller) return "Maior ICM médio entre os vendedores no ciclo atual.";
-    return `Maior ICM médio entre os vendedores no ciclo atual, com score de ${seller.score.toFixed(1)}%.`;
+    return `Maior ICM médio entre os vendedores no ciclo atual, com score de ${(seller.score || 0).toFixed(1)}%.`;
   };
 
   const getRiskySellerTooltip = () => {
@@ -70,7 +70,7 @@ export const IntelligenceRadar: React.FC<Props> = ({ data }) => {
     if (seller.pillars.cdc.icm < 60) lowPillars.push('CDC');
     if (seller.pillars.services.icm < 60) lowPillars.push('Serviços');
     
-    return `ICM médio de ${seller.score.toFixed(1)}%, com ${lowPillars.length > 0 ? lowPillars.join(', ') : 'pilares'} abaixo do patamar crítico (60%).`;
+    return `ICM médio de ${(seller.score || 0).toFixed(1)}%, com ${lowPillars.length > 0 ? lowPillars.join(', ') : 'pilares'} abaixo do patamar crítico (60%).`;
   };
 
   const getTrendTooltip = () => {
@@ -91,7 +91,7 @@ export const IntelligenceRadar: React.FC<Props> = ({ data }) => {
       icon: <Target size={16} />, 
       color: 'text-emerald-600', 
       bg: 'bg-emerald-50',
-      tooltip: `ICM de ${pillars[0].name} em ${pillars[0].icm.toFixed(1)}%, sendo o maior entre os pilares no ciclo atual.`
+      tooltip: `ICM de ${pillars[0].name} em ${(pillars[0].icm || 0).toFixed(1)}%, sendo o maior entre os pilares no ciclo atual.`
     },
     { 
       id: 'vulneravel',
@@ -100,7 +100,7 @@ export const IntelligenceRadar: React.FC<Props> = ({ data }) => {
       icon: <AlertTriangle size={16} />, 
       color: 'text-accent', 
       bg: 'bg-accent/10',
-      tooltip: `ICM de ${pillars[2].name} em ${pillars[2].icm.toFixed(1)}%, menor desempenho relativo no período, impactando a sustentação global.`
+      tooltip: `ICM de ${pillars[2].name} em ${(pillars[2].icm || 0).toFixed(1)}%, menor desempenho relativo no período, impactando a sustentação global.`
     },
     { 
       id: 'ascensao',
@@ -136,7 +136,7 @@ export const IntelligenceRadar: React.FC<Props> = ({ data }) => {
       icon: <Users size={16} />, 
       color: 'text-purple-600', 
       bg: 'bg-purple-50',
-      tooltip: `Diferença de ${dispersion.toFixed(1)} pontos percentuais entre melhor e pior vendedor no ciclo. Classificação: ${getDispersionClass(dispersion)} (Alta > 40, Moderada 20-40, Baixa < 20).`
+      tooltip: `Diferença de ${(dispersion || 0).toFixed(1)} pontos percentuais entre melhor e pior vendedor no ciclo. Classificação: ${getDispersionClass(dispersion)} (Alta > 40, Moderada 20-40, Baixa < 20).`
     },
   ];
 
@@ -155,7 +155,7 @@ export const IntelligenceRadar: React.FC<Props> = ({ data }) => {
             }`}
             onClick={() => setActiveTooltip(activeTooltip === 'health' ? null : 'health')}
           >
-            Score de Saúde: {healthScore.toFixed(1)}
+            Score de Saúde: {(healthScore || 0).toFixed(1)}
             <Info size={10} className="opacity-50" />
           </div>
           <AnimatePresence>

@@ -87,7 +87,7 @@ export const SeasonalPaceBlock: React.FC<Props> = ({ context }) => {
               <div className="flex justify-between items-center">
                 <span className="text-[8px] font-bold text-zinc-400 uppercase">ICM Sazonal</span>
                 <span className={`text-xs font-black ${item.icm >= 100 ? 'text-emerald-600' : item.icm >= 95 ? 'text-amber-600' : 'text-accent'}`}>
-                  {item.icm.toFixed(1)}%
+                  {(item.icm || 0).toFixed(1)}%
                 </span>
               </div>
               <div className="pt-2 border-t border-zinc-100 flex justify-between items-center">

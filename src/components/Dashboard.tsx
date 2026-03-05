@@ -413,16 +413,16 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
             Score {periodContext.mode === 'monthly' ? 'Sazonal' : 'Global'}
           </span>
           <div className="text-6xl font-black tracking-tighter mb-2">
-            {seasonalScore.score.toFixed(1)}
+            {(seasonalScore.score || 0).toFixed(1)}
           </div>
           <div className="px-4 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest">
             {classifyHealth(seasonalScore.score)}
           </div>
         </div>
 
-        {(['mercantil', 'cdc', 'servicos'] as const).map((p, idx) => {
+        {(['mercantil', 'cdc', 'services'] as const).map((p, idx) => {
           const icm = seasonalScore.icms[p];
-          const label = p === 'servicos' ? 'Serviços' : p.toUpperCase();
+          const label = p === 'services' ? 'Serviços' : p.toUpperCase();
             
           return (
             <div key={p} className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm flex flex-col items-center justify-center relative overflow-hidden group hover:border-primary/30 transition-all">
@@ -432,12 +432,12 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">
                 ICM {label} {periodContext.mode === 'monthly' ? '(Sazonal)' : ''}
               </span>
-              <div className="text-5xl font-black tracking-tighter text-primary mb-2">{icm.toFixed(1)}%</div>
+              <div className="text-5xl font-black tracking-tighter text-primary mb-2">{(icm || 0).toFixed(1)}%</div>
               <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden mt-2">
                 <motion.div 
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, icm)}%` }}
-                  className={`h-full ${icm >= 100 ? 'bg-emerald-500' : icm >= 80 ? 'bg-amber-500' : 'bg-accent'}`}
+                  animate={{ width: `${Math.min(100, icm || 0)}%` }}
+                  className={`h-full ${(icm || 0) >= 100 ? 'bg-emerald-500' : (icm || 0) >= 80 ? 'bg-amber-500' : 'bg-accent'}`}
                 />
               </div>
             </div>
@@ -553,7 +553,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                   <div key={p} className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-black uppercase text-zinc-400">{p === 'services' ? 'Serviços' : p}</span>
-                      <span className="text-[10px] font-black text-primary">{data.store.pillars[p].icm.toFixed(1)}%</span>
+                      <span className="text-[10px] font-black text-primary">{(data.store.pillars[p].icm || 0).toFixed(1)}%</span>
                     </div>
                     <div>
                       <span className="text-[10px] font-bold text-zinc-400 uppercase block">Realizado</span>
@@ -669,12 +669,12 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                         {s.isTripleCrown && <Award size={14} className="text-accent" />}
                       </button>
                     </td>
-                    <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.mercantil.icm.toFixed(1)}%</td>
-                    <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.cdc.icm.toFixed(1)}%</td>
-                    <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{s.pillars.services.icm.toFixed(1)}%</td>
+                    <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{(s.pillars.mercantil.icm || 0).toFixed(1)}%</td>
+                    <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{(s.pillars.cdc.icm || 0).toFixed(1)}%</td>
+                    <td className="py-4 px-2 text-center text-xs font-medium text-zinc-600">{(s.pillars.services.icm || 0).toFixed(1)}%</td>
                     <td className="py-4 px-2 text-right">
                       <div className="flex flex-col items-end">
-                        <span className="text-sm font-black text-primary">{s.score.toFixed(1)}%</span>
+                        <span className="text-sm font-black text-primary">{(s.score || 0).toFixed(1)}%</span>
                         {s.intelligence?.trend.mercantil.includes('alta') ? <TrendingUp size={10} className="text-emerald-500" /> : 
                          s.intelligence?.trend.mercantil.includes('retração') ? <TrendingDown size={10} className="text-accent" /> : null}
                       </div>
@@ -761,7 +761,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
             <div className="text-right">
               <span className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-1">Score Projetado</span>
               <div className="flex items-baseline gap-3">
-                <span className="text-5xl font-black text-white">{data.trendSimulation.projectedScore.toFixed(1)}</span>
+                <span className="text-5xl font-black text-white">{(data.trendSimulation.projectedScore || 0).toFixed(1)}</span>
                 <span className={`text-xs font-black uppercase px-3 py-1 rounded-full ${
                   data.trendSimulation.projectedScore >= 80 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-accent/20 text-accent'
                 }`}>
@@ -776,7 +776,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
               <div key={p} className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] font-black uppercase text-white/40">{p === 'services' ? 'Serviços' : p}</span>
-                  <span className="text-lg font-black text-white">{data.trendSimulation![p].icm.toFixed(1)}%</span>
+                  <span className="text-lg font-black text-white">{(data.trendSimulation![p].icm || 0).toFixed(1)}%</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-white/30 uppercase block">Entrega Projetada</span>
@@ -830,7 +830,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                 <span className="text-[10px] font-black uppercase text-zinc-400">Performance {selectedPillar}</span>
                 <div className="p-4 bg-zinc-50 rounded-2xl space-y-3">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-2xl font-black text-primary">{data.store.pillars[selectedPillar].icm.toFixed(1)}%</span>
+                    <span className="text-2xl font-black text-primary">{(data.store.pillars[selectedPillar].icm || 0).toFixed(1)}%</span>
                     <span className="text-[10px] font-bold text-zinc-500 uppercase">ICM Entrega</span>
                   </div>
                   <div className="space-y-1">
@@ -860,7 +860,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                         </div>
                         <div className="text-right">
                           <span className="text-xs font-black text-primary block">{formatCurrencyBR(s.pillars[selectedPillar].realized)}</span>
-                          <span className="text-[8px] font-bold text-zinc-400 uppercase">{s.pillars[selectedPillar].icm.toFixed(0)}% ICM</span>
+                          <span className="text-[8px] font-bold text-zinc-400 uppercase">{(s.pillars[selectedPillar].icm || 0).toFixed(0)}% ICM</span>
                         </div>
                       </div>
                     ))}
@@ -1025,7 +1025,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                       <div className="flex justify-center md:justify-start gap-4">
                         <div className="text-center">
                           <span className="text-[8px] font-bold text-zinc-400 uppercase block">Score</span>
-                          <span className="text-sm font-black text-zinc-900">{mvpSeller.score.toFixed(1)}%</span>
+                          <span className="text-sm font-black text-zinc-900">{(mvpSeller.score || 0).toFixed(1)}%</span>
                         </div>
                         <div className="text-center">
                           <span className="text-[8px] font-bold text-zinc-400 uppercase block">Status</span>
@@ -1091,7 +1091,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pt-8">
               <span className="text-5xl font-black text-primary">
-                {seasonalScore.score.toFixed(1)}
+                {(seasonalScore.score || 0).toFixed(1)}
               </span>
               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-center">
                 Score {periodContext.mode === 'monthly' ? 'Sazonal' : 'Global'}

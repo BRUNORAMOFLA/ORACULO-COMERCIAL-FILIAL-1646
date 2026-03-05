@@ -78,7 +78,7 @@ export const OperationalBottleneckRadar: React.FC<Props> = ({ context }) => {
                 ICM {context.mode === 'monthly' ? 'Sazonal' : 'Atual'}
               </span>
               <p className={`text-lg font-black ${idx === 0 ? 'text-accent' : 'text-zinc-900'}`}>
-                {item.icm.toFixed(1)}%
+                {(item.icm || 0).toFixed(1)}%
               </p>
             </div>
 
@@ -88,7 +88,7 @@ export const OperationalBottleneckRadar: React.FC<Props> = ({ context }) => {
                   Distância {context.mode === 'monthly' ? 'Sazonal' : 'da Meta'}
                 </span>
                 <span className={`text-sm font-black ${idx === 0 ? 'text-accent' : 'text-zinc-600'}`}>
-                  {item.distance.toFixed(1)}%
+                  {(item.distance || 0).toFixed(1)}%
                 </span>
               </div>
               <div className="w-16 h-1 bg-zinc-100 rounded-full overflow-hidden">
@@ -108,7 +108,7 @@ export const OperationalBottleneckRadar: React.FC<Props> = ({ context }) => {
         </div>
         <p className="text-xs font-bold leading-relaxed">
           Gargalo principal da operação {context.mode === 'monthly' ? '(Sazonal)' : ''}: <span className="text-accent uppercase font-black">{mainBottleneck.label}</span>. 
-          Este pilar apresenta a maior distância da meta {context.mode === 'monthly' ? 'esperada até hoje' : 'do período'} (<span className="text-accent font-black">{mainBottleneck.distance.toFixed(1)}%</span>), exigindo intervenção prioritária.
+          Este pilar apresenta a maior distância da meta {context.mode === 'monthly' ? 'esperada até hoje' : 'do período'} (<span className="text-accent font-black">{(mainBottleneck.distance || 0).toFixed(1)}%</span>), exigindo intervenção prioritária.
         </p>
       </div>
     </section>
