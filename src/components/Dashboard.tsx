@@ -277,7 +277,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
     return 'text-red-600';
   };
 
-  const periodKey = data.store.period.label.replace(/\s+/g, '_');
+  const periodKey = seasonalData.store.period.label.replace(/\s+/g, '_');
   const mvpPhoto = usePhotoStorage(`mvp_photo_${periodKey}`);
   const [activePhotoMenu, setActivePhotoMenu] = useState<'mvp' | null>(null);
 
@@ -295,10 +295,10 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [activePhotoMenu]);
 
-  const tripleCrownSellers = filteredSellers.filter(s => s.isTripleCrown);
-  const mvpSeller = filteredSellers.find(s => s.id === data.mvpId);
+  const tripleCrownSellers = seasonalSellers.filter(s => s.isTripleCrown);
+  const mvpSeller = seasonalSellers.find(s => s.id === data.mvpId);
 
-  const filename = `Oraculo_Comercial_${data.store.name}_${data.store.period.label.replace(/\//g, '-')}`;
+  const filename = `Oraculo_Comercial_${seasonalData.store.name}_${seasonalData.store.period.label.replace(/\//g, '-')}`;
 
   const getHorizonLabel = (type: PeriodType) => {
     switch (type) {
@@ -361,16 +361,16 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
           <div className="space-y-3">
             <div className="flex items-center gap-3 text-primary">
               <span className="text-2xl">🧭</span>
-              <h1 className="text-xl font-black uppercase tracking-tighter">Horizonte: {getHorizonLabel(data.store.period.type)}</h1>
+              <h1 className="text-xl font-black uppercase tracking-tighter">Horizonte: {getHorizonLabel(seasonalData.store.period.type)}</h1>
             </div>
             <div className="flex items-center gap-3 text-zinc-500">
               <span className="text-2xl">📅</span>
-              <p className="text-sm font-bold">Período: {data.store.period.label}</p>
+              <p className="text-sm font-bold">Período: {seasonalData.store.period.label}</p>
             </div>
           </div>
           
-          <div className={`px-6 py-3 rounded-2xl text-white text-xs font-black uppercase tracking-widest shadow-xl ${getHorizonBadge(data.store.period.type).color}`}>
-            {getHorizonBadge(data.store.period.type).label}
+          <div className={`px-6 py-3 rounded-2xl text-white text-xs font-black uppercase tracking-widest shadow-xl ${getHorizonBadge(seasonalData.store.period.type).color}`}>
+            {getHorizonBadge(seasonalData.store.period.type).label}
           </div>
         </div>
       </div>
@@ -560,11 +560,11 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
             <div className="flex justify-between items-center">
               <div className="space-y-1">
                 <span className="text-[10px] font-bold text-zinc-400 uppercase block">Status do Ciclo</span>
-                <h4 className="text-lg font-black text-primary">{data.store.period.label}</h4>
+                <h4 className="text-lg font-black text-primary">{seasonalData.store.period.label}</h4>
               </div>
               <div className="text-right">
                 <span className="text-[10px] font-bold text-zinc-400 uppercase block">Dias Decorridos</span>
-                <span className="text-lg font-black text-primary">{data.store.period.businessDaysElapsed} / {data.store.period.businessDaysTotal}</span>
+                <span className="text-lg font-black text-primary">{seasonalData.store.period.businessDaysElapsed} / {seasonalData.store.period.businessDaysTotal}</span>
               </div>
             </div>
 
@@ -581,18 +581,18 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {(['mercantil', 'cdc', 'services'] as const).map(p => {
-                const remainingDays = data.store.period.businessDaysTotal - data.store.period.businessDaysElapsed;
-                const neededDaily = remainingDays > 0 ? Math.max(0, (data.store.pillars[p].meta - data.store.pillars[p].realized) / remainingDays) : 0;
+                const remainingDays = seasonalData.store.period.businessDaysTotal - seasonalData.store.period.businessDaysElapsed;
+                const neededDaily = remainingDays > 0 ? Math.max(0, (seasonalData.store.pillars[p].meta - seasonalData.store.pillars[p].realized) / remainingDays) : 0;
                 
                 return (
                   <div key={p} className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-black uppercase text-zinc-400">{p === 'services' ? 'Serviços' : p}</span>
-                      <span className="text-[10px] font-black text-primary">{(data.store.pillars[p].icm || 0).toFixed(1)}%</span>
+                      <span className="text-[10px] font-black text-primary">{(seasonalData.store.pillars[p].icm || 0).toFixed(1)}%</span>
                     </div>
                     <div>
                       <span className="text-[10px] font-bold text-zinc-400 uppercase block">Realizado</span>
-                      <span className="text-sm font-black text-zinc-900">{formatCurrencyBR(data.store.pillars[p].realized)}</span>
+                      <span className="text-sm font-black text-zinc-900">{formatCurrencyBR(seasonalData.store.pillars[p].realized)}</span>
                     </div>
                     <div className="pt-2 border-t border-zinc-200">
                       <span className="text-[8px] font-bold text-zinc-400 uppercase block">Média Necessária</span>
@@ -601,7 +601,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                     <div className="h-1 bg-zinc-200 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-primary transition-all duration-1000"
-                        style={{ width: `${Math.min(100, data.store.pillars[p].icm)}%` }}
+                        style={{ width: `${Math.min(100, seasonalData.store.pillars[p].icm)}%` }}
                       />
                     </div>
                   </div>
@@ -617,19 +617,19 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
             </div>
             <div className="relative z-10">
               <span className="text-[10px] font-black uppercase tracking-widest text-white/50 block mb-2">
-                Projeção Linear {data.store.period.type === 'daily' ? 'do Dia' : data.store.period.type === 'weekly' ? 'da Semana' : 'do Mês'}
+                Projeção Linear {seasonalData.store.period.type === 'daily' ? 'do Dia' : seasonalData.store.period.type === 'weekly' ? 'da Semana' : 'do Mês'}
               </span>
               <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-4xl font-black">{data.projection.probability}</span>
+                <span className="text-4xl font-black">{seasonalData.projection.probability}</span>
                 <span className="text-[10px] font-bold uppercase text-white/70">Probabilidade</span>
               </div>
               
               <div className="space-y-4">
                 <span className="text-[10px] font-black uppercase tracking-widest text-white/50 block mb-2">
-                  Projeção Linear {data.store.period.type === 'daily' ? 'do Dia' : data.store.period.type === 'weekly' ? 'da Semana' : 'do Mês'}
+                  Projeção Linear {seasonalData.store.period.type === 'daily' ? 'do Dia' : seasonalData.store.period.type === 'weekly' ? 'da Semana' : 'do Mês'}
                 </span>
                 <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-4xl font-black">{data.projection.probability}</span>
+                  <span className="text-4xl font-black">{seasonalData.projection.probability}</span>
                   <span className="text-[10px] font-bold uppercase text-white/70">Probabilidade</span>
                 </div>
                 
@@ -638,9 +638,9 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                     <div key={p} className="flex justify-between items-center border-b border-white/10 pb-2">
                       <span className="text-[10px] font-bold uppercase text-white/60">{p === 'services' ? 'Serviços' : p}</span>
                       <div className="text-right">
-                        <span className="text-xs font-black block">{formatCurrencyBR(data.projection[`${p}Projected` as keyof typeof data.projection] as number)}</span>
-                        <span className={`text-[8px] font-bold uppercase ${data.projection[`${p}Gap` as keyof typeof data.projection] as number <= 0 ? 'text-emerald-400' : 'text-accent'}`}>
-                          {data.projection[`${p}Gap` as keyof typeof data.projection] as number <= 0 ? 'Meta Atingida' : `Faltam ${formatCurrencyBR(data.projection[`${p}Gap` as keyof typeof data.projection] as number)}`}
+                        <span className="text-xs font-black block">{formatCurrencyBR(seasonalData.projection[`${p}Projected` as keyof typeof seasonalData.projection] as number)}</span>
+                        <span className={`text-[8px] font-bold uppercase ${seasonalData.projection[`${p}Gap` as keyof typeof seasonalData.projection] as number <= 0 ? 'text-emerald-400' : 'text-accent'}`}>
+                          {seasonalData.projection[`${p}Gap` as keyof typeof seasonalData.projection] as number <= 0 ? 'Meta Atingida' : `Faltam ${formatCurrencyBR(seasonalData.projection[`${p}Gap` as keyof typeof seasonalData.projection] as number)}`}
                         </span>
                       </div>
                     </div>
@@ -668,7 +668,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xs font-bold uppercase text-zinc-400">
-              Ranking de Performance Individual {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}
+              Ranking de Performance Individual {periodContext.mode === 'monthly' ? '(Sazonal)' : ''}
             </h3>
             <div className="flex gap-4 text-[10px] font-bold uppercase">
               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Elite</div>
@@ -763,7 +763,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
       </section>
 
       {/* LAYER 3: TENDÊNCIA FUTURA */}
-      {data.trendSimulation?.isAvailable && data.store.period.type === 'monthly' && (
+      {seasonalData.trendSimulation?.isAvailable && periodContext.mode === 'monthly' && (
         <section className="bg-zinc-900 p-8 rounded-[2.5rem] text-white space-y-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5">
             <Target size={200} />
@@ -849,17 +849,17 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                 <span className="text-[10px] font-black uppercase text-zinc-400">Performance {selectedPillar}</span>
                 <div className="p-4 bg-zinc-50 rounded-2xl space-y-3">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-2xl font-black text-primary">{(data.store.pillars[selectedPillar].icm || 0).toFixed(1)}%</span>
+                    <span className="text-2xl font-black text-primary">{(seasonalData.store.pillars[selectedPillar].icm || 0).toFixed(1)}%</span>
                     <span className="text-[10px] font-bold text-zinc-500 uppercase">ICM Entrega</span>
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold">
                       <span className="text-zinc-400">REALIZADO</span>
-                      <span className="text-zinc-900">{formatCurrencyBR(data.store.pillars[selectedPillar].realized)}</span>
+                      <span className="text-zinc-900">{formatCurrencyBR(seasonalData.store.pillars[selectedPillar].realized)}</span>
                     </div>
                     <div className="flex justify-between text-[10px] font-bold">
                       <span className="text-zinc-400">META</span>
-                      <span className="text-zinc-900">{formatCurrencyBR(data.store.pillars[selectedPillar].meta)}</span>
+                      <span className="text-zinc-900">{formatCurrencyBR(seasonalData.store.pillars[selectedPillar].meta)}</span>
                     </div>
                   </div>
                 </div>
@@ -868,7 +868,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
               <div className="md:col-span-2 space-y-4">
                 <span className="text-[10px] font-black uppercase text-zinc-400">Top 5 Vendedores em {selectedPillar}</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {filteredSellers
+                  {seasonalSellers
                     .sort((a, b) => b.pillars[selectedPillar].realized - a.pillars[selectedPillar].realized)
                     .slice(0, 5)
                     .map((s, idx) => (
@@ -929,17 +929,17 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
               >
                 <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-primary text-white rounded-xl gap-4">
                   <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${Object.values(data.store.tripleCrownStatus).every(v => v) ? 'bg-accent' : 'bg-white/10'}`}>
+                    <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${Object.values(seasonalData.store.tripleCrownStatus).every(v => v) ? 'bg-accent' : 'bg-white/10'}`}>
                       <Award size={20} className="text-white" />
                     </div>
                     <div>
                       <span className="text-[10px] font-bold uppercase text-white/50 block">Status da Unidade</span>
-                      <span className="text-sm font-bold">{Object.values(data.store.tripleCrownStatus).every(v => v) ? 'TRÍPLICE COROA CONSOLIDADA' : 'EM BUSCA DA TRÍPLICE COROA'}</span>
+                      <span className="text-sm font-bold">{Object.values(seasonalData.store.tripleCrownStatus).every(v => v) ? 'TRÍPLICE COROA CONSOLIDADA' : 'EM BUSCA DA TRÍPLICE COROA'}</span>
                     </div>
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto justify-center">
                     {['mercantil', 'cdc', 'services'].map(p => (
-                      <div key={p} className={`px-2 py-1 rounded text-[8px] font-black uppercase ${data.store.tripleCrownStatus[p as keyof typeof data.store.tripleCrownStatus] ? 'bg-emerald-500' : 'bg-white/10'}`}>
+                      <div key={p} className={`px-2 py-1 rounded text-[8px] font-black uppercase ${seasonalData.store.tripleCrownStatus[p as keyof typeof seasonalData.store.tripleCrownStatus] ? 'bg-emerald-500' : 'bg-white/10'}`}>
                         {p === 'services' ? 'Serviços' : p}
                       </div>
                     ))}
@@ -1122,7 +1122,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         {/* Pillars Performance */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-primary/10 shadow-sm">
           <h3 className="text-xs font-bold uppercase text-zinc-400 mb-6">
-            Execução por Pilar {data.store.period.type === 'monthly' ? '(Sazonal)' : ''}
+            Execução por Pilar {periodContext.mode === 'monthly' ? '(Sazonal)' : ''}
           </h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -1130,17 +1130,17 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                 { 
                   name: 'Mercantil', 
                   icm: seasonalScore.icms.mercantil, 
-                  proj: data.projection.mercantilProjected / (data.store.pillars.mercantil.meta || 1) * 100 
+                  proj: seasonalData.projection.mercantilProjected / (seasonalData.store.pillars.mercantil.meta || 1) * 100 
                 },
                 { 
                   name: 'CDC', 
                   icm: seasonalScore.icms.cdc, 
-                  proj: data.projection.cdcProjected / (data.store.pillars.cdc.meta || 1) * 100 
+                  proj: seasonalData.projection.cdcProjected / (seasonalData.store.pillars.cdc.meta || 1) * 100 
                 },
                 { 
                   name: 'Serviços', 
                   icm: seasonalScore.icms.services, 
-                  proj: data.projection.servicesProjected / (data.store.pillars.services.meta || 1) * 100 
+                  proj: seasonalData.projection.servicesProjected / (seasonalData.store.pillars.services.meta || 1) * 100 
                 },
               ]}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f1f1" />
@@ -1162,7 +1162,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         {selectedSeller && (
           <FeedbackModal 
             seller={selectedSeller} 
-            period={data.store.period} 
+            period={seasonalData.store.period} 
             onClose={() => setSelectedSeller(null)} 
           />
         )}
