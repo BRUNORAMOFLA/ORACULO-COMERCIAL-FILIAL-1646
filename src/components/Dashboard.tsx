@@ -99,67 +99,83 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
     let storeData = {
       mercantil: { meta: data.store.pillars.mercantil.meta, real: data.store.pillars.mercantil.realized },
       cdc: { meta: data.store.pillars.cdc.meta, real: data.store.pillars.cdc.realized },
-      servicos: { meta: data.store.pillars.services.meta, real: data.store.pillars.services.realized }
+      services: { meta: data.store.pillars.services.meta, real: data.store.pillars.services.realized }
     };
 
     let sellersData = filteredSellers.map(s => ({
       name: s.name,
       mercantil: { meta: s.pillars.mercantil.meta, real: s.pillars.mercantil.realized },
       cdc: { meta: s.pillars.cdc.meta, real: s.pillars.cdc.realized },
-      servicos: { meta: s.pillars.services.meta, real: s.pillars.services.realized }
+      services: { meta: s.pillars.services.meta, real: s.pillars.services.realized }
     }));
 
-    if (mode === 'monthly' && fullHistory) {
-      const monthDailyRecords = fullHistory.diario.filter(r => {
-        const p = r.dados.store.period;
-        if (p.type !== 'daily') return false;
-        let recordMonth = p.month;
-        let recordYear = p.year;
-        if (p.date) {
-          const [y, m] = p.date.split('-').map(Number);
-          recordMonth = m;
-          recordYear = y;
-        }
-        return recordMonth === currentMonth && recordYear === currentYear;
-      });
-
-      if (monthDailyRecords.length > 0) {
-        storeData = {
-          mercantil: {
-            meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
-            real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.realized || 0), 0)
-          },
-          cdc: {
-            meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
-            real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.realized || 0), 0)
-          },
-          servicos: {
-            meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
-            real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.realized || 0), 0)
+    if (mode === 'monthly') {
+      // For monthly mode, we MUST use the sum of daily records for seasonal store metrics
+      // but the period meta for sellers.
+      
+      if (fullHistory && fullHistory.diario) {
+        const monthDailyRecords = fullHistory.diario.filter(r => {
+          const p = r.dados.store.period;
+          if (p.type !== 'daily') return false;
+          let recordMonth = p.month;
+          let recordYear = p.year;
+          if (p.date) {
+            const [y, m] = p.date.split('-').map(Number);
+            recordMonth = m;
+            recordYear = y;
           }
-        };
+          return recordMonth === currentMonth && recordYear === currentYear;
+        });
 
-        sellersData = filteredSellers.map(seller => {
-          const sellerDailyRecords = monthDailyRecords.map(r => 
-            r.dados.sellers.find(s => s.name?.trim().toLowerCase() === seller.name?.trim().toLowerCase())
-          ).filter(Boolean);
-
-          return {
-            name: seller.name,
+        if (monthDailyRecords.length > 0) {
+          // Store: Seasonal Meta = Sum of Daily Metas, Seasonal Realized = Sum of Daily Realized
+          storeData = {
             mercantil: {
-              meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.meta || 0), 0),
-              real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.realized || 0), 0)
+              meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
+              real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.realized || 0), 0)
             },
             cdc: {
-              meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.meta || 0), 0),
-              real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.realized || 0), 0)
+              meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
+              real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.realized || 0), 0)
             },
-            servicos: {
-              meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.meta || 0), 0),
-              real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.realized || 0), 0)
+            services: {
+              meta: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
+              real: monthDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.realized || 0), 0)
             }
           };
-        });
+
+          // Sellers: Period Meta = Monthly Meta, Seasonal Realized = Sum of Daily Realized
+          sellersData = filteredSellers.map(seller => {
+            const sellerDailyRecords = monthDailyRecords.map(r => 
+              r.dados.sellers.find(s => s.name?.trim().toLowerCase() === seller.name?.trim().toLowerCase())
+            ).filter(Boolean);
+
+            return {
+              name: seller.name,
+              mercantil: {
+                meta: seller.pillars.mercantil.meta, // Period Meta
+                real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.realized || 0), 0)
+              },
+              cdc: {
+                meta: seller.pillars.cdc.meta, // Period Meta
+                real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.realized || 0), 0)
+              },
+              services: {
+                meta: seller.pillars.services.meta, // Period Meta
+                real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.realized || 0), 0)
+              }
+            };
+          });
+
+          // Validation Rule: Check for inconsistencies
+          (['mercantil', 'cdc', 'services'] as const).forEach(p => {
+            const summed = storeData[p].real;
+            const reported = data.store.pillars[p].realized;
+            if (Math.abs(summed - reported) > 1) {
+              console.error(`INCONSISTÊNCIA DE BASE: Pilar ${p} - Soma Diária (${summed}) vs Reportado (${reported})`);
+            }
+          });
+        }
       }
     }
 
@@ -175,7 +191,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
   const seasonalScore = useMemo(() => {
     const icmMerc = calculateICM(periodContext.store.mercantil.real, periodContext.store.mercantil.meta);
     const icmCdc = calculateICM(periodContext.store.cdc.real, periodContext.store.cdc.meta);
-    const icmServ = calculateICM(periodContext.store.servicos.real, periodContext.store.servicos.meta);
+    const icmServ = calculateICM(periodContext.store.services.real, periodContext.store.services.meta);
     
     const score = calculateHealthIndex(icmMerc, icmCdc, icmServ);
     
@@ -184,7 +200,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
       icms: {
         mercantil: icmMerc,
         cdc: icmCdc,
-        servicos: icmServ
+        services: icmServ
       }
     };
   }, [periodContext]);
@@ -193,7 +209,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
     return periodContext.sellers.map(s => {
       const icmMerc = calculateICM(s.mercantil.real, s.mercantil.meta);
       const icmCdc = calculateICM(s.cdc.real, s.cdc.meta);
-      const icmServ = calculateICM(s.servicos.real, s.servicos.meta);
+      const icmServ = calculateICM(s.services.real, s.services.meta);
       
       const score = calculateHealthIndex(icmMerc, icmCdc, icmServ);
       const originalSeller = filteredSellers.find(fs => fs.name === s.name)!;
@@ -203,7 +219,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         pillars: {
           mercantil: { ...originalSeller.pillars.mercantil, icm: icmMerc, meta: s.mercantil.meta, realized: s.mercantil.real },
           cdc: { ...originalSeller.pillars.cdc, icm: icmCdc, meta: s.cdc.meta, realized: s.cdc.real },
-          services: { ...originalSeller.pillars.services, icm: icmServ, meta: s.servicos.meta, realized: s.servicos.real },
+          services: { ...originalSeller.pillars.services, icm: icmServ, meta: s.services.meta, realized: s.services.real },
         },
         score,
         classification: classifySeller(score),
@@ -280,7 +296,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
   const bottleneckPillars = [
     { id: 'mercantil', label: 'Mercantil' },
     { id: 'cdc', label: 'CDC' },
-    { id: 'servicos', label: 'Serviços' }
+    { id: 'services', label: 'Serviços' }
   ] as const;
 
   const bottleneckAnalysis = bottleneckPillars.map(p => {
@@ -633,9 +649,9 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                 <tr className="text-[10px] font-black uppercase text-zinc-400 border-b">
                   <th className="pb-3 px-2">Pos</th>
                   <th className="pb-3 px-2">Vendedor</th>
-                  <th className="pb-3 px-2 text-center">{data.store.period.type === 'monthly' ? 'ICM Saz.' : 'Mercantil'}</th>
-                  <th className="pb-3 px-2 text-center">{data.store.period.type === 'monthly' ? 'ICM Saz.' : 'CDC'}</th>
-                  <th className="pb-3 px-2 text-center">{data.store.period.type === 'monthly' ? 'ICM Saz.' : 'Serviços'}</th>
+                  <th className="pb-3 px-2 text-center">Mercantil</th>
+                  <th className="pb-3 px-2 text-center">CDC</th>
+                  <th className="pb-3 px-2 text-center">Serviços</th>
                   <th className="pb-3 px-2 text-right">Score</th>
                   <th className="pb-3 px-2 text-right">Status</th>
                 </tr>
@@ -707,7 +723,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
               pillars: {
                 mercantil: { ...data.store.pillars.mercantil, meta: periodContext.store.mercantil.meta, realized: periodContext.store.mercantil.real },
                 cdc: { ...data.store.pillars.cdc, meta: periodContext.store.cdc.meta, realized: periodContext.store.cdc.real },
-                services: { ...data.store.pillars.services, meta: periodContext.store.servicos.meta, realized: periodContext.store.servicos.real },
+                services: { ...data.store.pillars.services, meta: periodContext.store.services.meta, realized: periodContext.store.services.real },
                 operational: data.store.pillars.operational
               }
             }} 
@@ -719,7 +735,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
               pillars: {
                 mercantil: { ...data.store.pillars.mercantil, meta: periodContext.store.mercantil.meta, realized: periodContext.store.mercantil.real },
                 cdc: { ...data.store.pillars.cdc, meta: periodContext.store.cdc.meta, realized: periodContext.store.cdc.real },
-                services: { ...data.store.pillars.services, meta: periodContext.store.servicos.meta, realized: periodContext.store.servicos.real },
+                services: { ...data.store.pillars.services, meta: periodContext.store.services.meta, realized: periodContext.store.services.real },
                 operational: data.store.pillars.operational
               }
             }} 
@@ -1104,7 +1120,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                 },
                 { 
                   name: 'Serviços', 
-                  icm: seasonalScore.icms.servicos, 
+                  icm: seasonalScore.icms.services, 
                   proj: data.projection.servicesProjected / (data.store.pillars.services.meta || 1) * 100 
                 },
               ]}>

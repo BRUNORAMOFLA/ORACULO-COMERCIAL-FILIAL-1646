@@ -13,7 +13,7 @@ export const OperationalBottleneckRadar: React.FC<Props> = ({ context }) => {
   const pillars = [
     { id: 'mercantil', label: 'Mercantil' },
     { id: 'cdc', label: 'CDC' },
-    { id: 'servicos', label: 'Serviços' }
+    { id: 'services', label: 'Serviços' }
   ] as const;
 
   const analysis = pillars.map(p => {

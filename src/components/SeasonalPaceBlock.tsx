@@ -12,7 +12,7 @@ interface Props {
 
 export const SeasonalPaceBlock: React.FC<Props> = ({ context }) => {
   const seasonalAnalysis = useMemo(() => {
-    const pillars = ['mercantil', 'cdc', 'servicos'] as const;
+    const pillars = ['mercantil', 'cdc', 'services'] as const;
 
     return pillars.map(p => {
       const expectedAccumulatedMeta = context.store[p].meta;
@@ -31,7 +31,7 @@ export const SeasonalPaceBlock: React.FC<Props> = ({ context }) => {
 
       return {
         id: p,
-        label: p === 'servicos' ? 'Serviços' : p.toUpperCase(),
+        label: p === 'services' ? 'Serviços' : p.toUpperCase(),
         expectedAccumulatedMeta,
         accumulatedRealized,
         gapSazonal,
