@@ -195,13 +195,13 @@ export interface PeriodContext {
   store: {
     mercantil: { meta: number; real: number };
     cdc: { meta: number; real: number };
-    servicos: { meta: number; real: number };
+    services: { meta: number; real: number };
   };
   sellers: {
     name: string;
     mercantil: { meta: number; real: number };
     cdc: { meta: number; real: number };
-    servicos: { meta: number; real: number };
+    services: { meta: number; real: number };
   }[];
 }
 
