@@ -222,6 +222,43 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
       const score = calculateHealthIndex(icmMerc, icmCdc, icmServ);
       const originalSeller = filteredSellers.find(fs => fs.name === s.name)!;
 
+      // Classificação Estratégica em Duas Camadas
+      const icmList = [icmMerc, icmCdc, icmServ];
+      const minICM = Math.min(...icmList);
+      const maxICM = Math.max(...icmList);
+      const spread = maxICM - minICM;
+      const sortedIcms = [...icmList].sort((a, b) => b - a);
+      const secondMaxICM = sortedIcms[1];
+
+      // 1. Nível de Performance
+      let nivelPerformance = "RISCO";
+      if (score >= 120) nivelPerformance = "ELITE";
+      else if (score >= 100) nivelPerformance = "ALTO";
+      else if (score >= 80) nivelPerformance = "PARCIAL";
+
+      // 2. Padrão Operacional (Ordem de Prioridade)
+      let padrao = "DESEQUILÍBRIO OPERACIONAL";
+      
+      if (icmList.filter(v => v < 40).length >= 2) {
+        padrao = "COLAPSO OPERACIONAL";
+      } else if (minICM < 50) {
+        padrao = "PILAR CRÍTICO";
+      } else if (maxICM >= 150 && (maxICM - secondMaxICM) >= 40) {
+        if (maxICM === icmMerc) padrao = "DEPENDÊNCIA DE MERCANTIL";
+        else if (maxICM === icmCdc) padrao = "DEPENDÊNCIA DE CDC";
+        else if (maxICM === icmServ) padrao = "DEPENDÊNCIA DE SERVIÇOS";
+      } else if (minICM >= 110 && spread > 60) {
+        padrao = "DOMINÂNCIA CONCENTRADA";
+      } else if (minICM >= 100 && spread > 60 && minICM < 110) {
+        padrao = "DOMINÂNCIA DESBALANCEADA";
+      } else if (minICM >= 100 && spread <= 60) {
+        padrao = "DOMINÂNCIA EQUILIBRADA";
+      } else if (minICM >= 60 && minICM < 100) {
+        padrao = "DESEQUILÍBRIO OPERACIONAL";
+      }
+
+      const strategicStatus = `${nivelPerformance} • ${padrao}`;
+
       return {
         ...originalSeller,
         pillars: {
@@ -230,7 +267,8 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
           services: { ...originalSeller.pillars.services, icm: icmServ, meta: s.services.meta, realized: s.services.real },
         },
         score,
-        classification: classifySeller(score),
+        classification: nivelPerformance,
+        strategicStatus,
         profile: classifySellerProfile(score, calculateBalanceIndex([icmMerc, icmCdc, icmServ]), [icmMerc, icmCdc, icmServ])
       };
     });
@@ -265,7 +303,8 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
       } : undefined,
       strategicContext: data.strategicContext ? {
         ...data.strategicContext,
-        mode: periodContext.mode.toUpperCase() as any
+        mode: (periodContext.mode === 'daily' ? 'DIARIO' : 
+               periodContext.mode === 'weekly' ? 'SEMANAL' : 'MENSAL') as 'DIARIO' | 'SEMANAL' | 'MENSAL'
       } : undefined
     } as OracleResult;
   }, [data, periodContext, seasonalScore, seasonalSellers]);
@@ -360,6 +399,456 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
       return dateB.localeCompare(dateA); // Newest first for list
     });
 
+  if (periodContext.mode === 'monthly') {
+    return (
+      <div className="space-y-8" id="dashboard-content">
+        {/* 1. CABEÇALHO DA UNIDADE */}
+        <div className="bg-white p-8 rounded-3xl border border-primary/10 shadow-sm relative overflow-hidden">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-black tracking-tight text-primary uppercase">{seasonalData.store.name}</h2>
+                <p className="text-xs md:text-sm font-bold text-zinc-500 uppercase tracking-wider">Relatório de Performance Estratégica • {seasonalData.store.period.label}</p>
+              </div>
+              
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Status da Operação:</span>
+                  <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                    seasonalScore.score >= 80 ? 'bg-emerald-100 text-emerald-700' : 
+                    seasonalScore.score >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-accent/10 text-accent'
+                  }`}>
+                    {classifyHealth(seasonalScore.score)}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Horizonte:</span>
+                  <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getHorizonBadge(seasonalData.store.period.type).color} text-white`}>
+                    {getHorizonBadge(seasonalData.store.period.type).label}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative no-export">
+              <button 
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl text-xs font-black hover:bg-primary/90 transition-all shadow-xl shadow-primary/20"
+              >
+                <Share2 size={16} className="text-accent" /> EXPORTAR RELATÓRIO
+              </button>
+              
+              <AnimatePresence>
+                {showExportMenu && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-black/5 p-2 z-[100] space-y-1"
+                  >
+                    <button 
+                      onClick={() => { exportToExcel(data); setShowExportMenu(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-50 rounded-xl text-xs font-bold text-zinc-600 transition-colors"
+                    >
+                      <FileSpreadsheet size={16} className="text-emerald-600" /> Excel Analítico
+                    </button>
+                    <button 
+                      onClick={() => { exportToPDF('dashboard-content', filename); setShowExportMenu(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-50 rounded-xl text-xs font-bold text-zinc-600 transition-colors"
+                    >
+                      <FileText size={16} className="text-red-600" /> PDF Executivo
+                    </button>
+                    <button 
+                      onClick={() => { exportToPNG('dashboard-content', filename); setShowExportMenu(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-50 rounded-xl text-xs font-bold text-zinc-600 transition-colors"
+                    >
+                      <ImageIcon size={16} className="text-blue-600" /> PNG Estilo Slide
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. SCORE SAZONAL + ICMs */}
+        <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-primary text-white p-8 rounded-[2.5rem] shadow-xl shadow-primary/20 flex flex-col items-center justify-center relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+              <Trophy size={80} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-2">Score Sazonal</span>
+            <div className="text-6xl font-black tracking-tighter mb-2">{(seasonalScore.score || 0).toFixed(1)}</div>
+            <div className="px-4 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest">
+              {classifyHealth(seasonalScore.score)}
+            </div>
+          </div>
+
+          {(['mercantil', 'cdc', 'services'] as const).map((p) => {
+            const icm = seasonalScore.icms[p];
+            const label = p === 'services' ? 'Serviços' : p.toUpperCase();
+            return (
+              <div key={p} className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm flex flex-col items-center justify-center relative overflow-hidden group hover:border-primary/30 transition-all">
+                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-500">
+                  <Target size={80} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">ICM {label} Sazonal</span>
+                <div className="text-5xl font-black tracking-tighter text-primary mb-2">{(icm || 0).toFixed(1)}%</div>
+                <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden mt-2">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, icm || 0)}%` }}
+                    className={`h-full ${(icm || 0) >= 100 ? 'bg-emerald-500' : (icm || 0) >= 80 ? 'bg-amber-500' : 'bg-accent'}`}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </section>
+
+        {/* 3. RITMO SAZONAL DO MÊS */}
+        <SeasonalPaceBlock context={periodContext} />
+
+        {/* 4. RADAR DE GARGALO SAZONAL */}
+        <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm">
+          <OperationalBottleneckRadar context={periodContext} />
+        </div>
+
+        {/* 5. STATUS DA OPERAÇÃO SAZONAL */}
+        <div className="bg-white p-8 rounded-3xl border-2 border-dashed border-zinc-100 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-2xl">📊</span>
+            <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Status da Operação Sazonal:</h3>
+          </div>
+          <div className={`text-3xl font-black tracking-tighter ${getOperationStatus(seasonalScore.score).color}`}>
+            {getOperationStatus(seasonalScore.score).label}
+          </div>
+        </div>
+
+        {/* 6. PERÍODO ATUAL */}
+        <div className="bg-white p-8 rounded-3xl border border-primary/10 shadow-sm space-y-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Status do Ciclo</span>
+              <h4 className="text-xl font-black text-primary uppercase">{seasonalData.store.period.label}</h4>
+            </div>
+            <div className="flex gap-8">
+              <div className="text-right">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Dias Decorridos</span>
+                <span className="text-xl font-black text-primary">{seasonalData.store.period.businessDaysElapsed} / {seasonalData.store.period.businessDaysTotal}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-black uppercase tracking-widest text-accent block">Gargalo Operacional</span>
+                <span className="text-xl font-black text-zinc-900 uppercase">{hasBottleneck ? mainBottleneck.label : 'Nenhum'}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {(['mercantil', 'cdc', 'services'] as const).map(p => {
+              const remainingDays = seasonalData.store.period.businessDaysTotal - seasonalData.store.period.businessDaysElapsed;
+              const neededDaily = remainingDays > 0 ? Math.max(0, (seasonalData.store.pillars[p].meta - seasonalData.store.pillars[p].realized) / remainingDays) : 0;
+              return (
+                <div key={p} className="p-6 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-zinc-400">{p === 'services' ? 'Serviços' : p}</span>
+                    <span className="text-sm font-black text-primary">{(seasonalData.store.pillars[p].icm || 0).toFixed(1)}%</span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase block">Realizado</span>
+                    <span className="text-lg font-black text-zinc-900">{formatCurrencyBR(seasonalData.store.pillars[p].realized)}</span>
+                  </div>
+                  <div className="pt-4 border-t border-zinc-200">
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase block mb-1">Média Necessária</span>
+                    <span className="text-sm font-black text-accent">{formatCurrencyBR(neededDaily)} / DIA</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 7. PROJEÇÃO DO MÊS */}
+        <div className="bg-primary text-white p-8 rounded-[2.5rem] shadow-xl shadow-primary/20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <TrendingUp size={120} />
+          </div>
+          <div className="relative z-10 space-y-8">
+            <div className="flex justify-between items-end">
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 block">Projeção Linear do Mês</span>
+                <div className="flex items-baseline gap-3">
+                  <span className="text-6xl font-black">{seasonalData.projection.probability}</span>
+                  <span className="text-xs font-bold uppercase text-white/70 tracking-widest">Probabilidade de Entrega</span>
+                </div>
+              </div>
+              <div className="text-right hidden md:block">
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/50 block mb-1">Status Projetado</span>
+                <span className="text-2xl font-black text-accent uppercase tracking-tighter">Em Evolução</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {(['mercantil', 'cdc', 'services'] as const).map(p => (
+                <div key={p} className="space-y-3 p-6 bg-white/10 rounded-3xl border border-white/10">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/60 block">{p === 'services' ? 'Serviços' : p}</span>
+                  <div className="space-y-1">
+                    <span className="text-xl font-black block">{formatCurrencyBR(seasonalData.projection[`${p}Projected` as keyof typeof seasonalData.projection] as number)}</span>
+                    <span className={`text-[10px] font-black uppercase ${seasonalData.projection[`${p}Gap` as keyof typeof seasonalData.projection] as number <= 0 ? 'text-emerald-400' : 'text-accent'}`}>
+                      {seasonalData.projection[`${p}Gap` as keyof typeof seasonalData.projection] as number <= 0 ? 'Meta Superada' : `Gap: ${formatCurrencyBR(seasonalData.projection[`${p}Gap` as keyof typeof seasonalData.projection] as number)}`}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 8. INTERVENÇÃO GERENCIAL */}
+        {seasonalData.strategicContext && (
+          <StrategicCommandPanel context={seasonalData.strategicContext} />
+        )}
+
+        {/* 9. RANKING DE PERFORMANCE INDIVIDUAL (Sazonal) */}
+        <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm">
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center gap-3">
+              <Trophy size={20} className="text-primary" />
+              <h3 className="text-xs font-black uppercase tracking-widest text-zinc-900">Ranking de Performance Individual (Sazonal)</h3>
+            </div>
+            <div className="flex gap-4 text-[10px] font-bold uppercase">
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Elite</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-primary" /> Alto</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500" /> Parcial</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-accent" /> Risco</div>
+            </div>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-[10px] font-black uppercase text-zinc-400 border-b">
+                  <th className="pb-4 px-2">Pos</th>
+                  <th className="pb-4 px-2">Vendedor</th>
+                  <th className="pb-4 px-2 text-center">Mercantil</th>
+                  <th className="pb-4 px-2 text-center">CDC</th>
+                  <th className="pb-4 px-2 text-center">Serviços</th>
+                  <th className="pb-4 px-2 text-right">Score</th>
+                  <th className="pb-4 px-2 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {[...seasonalSellers].sort((a, b) => b.score - a.score).map((s, idx) => (
+                  <tr key={s.id} className="group hover:bg-zinc-50 transition-colors">
+                    <td className="py-5 px-2 text-xs font-bold text-zinc-400">#{idx + 1}</td>
+                    <td className="py-5 px-2">
+                      <button onClick={() => setSelectedSeller(s)} className="flex items-center gap-2 hover:opacity-70 transition-opacity text-left">
+                        <span className="text-sm font-bold text-primary underline decoration-primary/20 underline-offset-4">{s.name}</span>
+                        {s.isTripleCrown && <Award size={14} className="text-accent" />}
+                      </button>
+                    </td>
+                    <td className="py-5 px-2 text-center text-xs font-medium text-zinc-600">{(s.pillars.mercantil.icm || 0).toFixed(1)}%</td>
+                    <td className="py-5 px-2 text-center text-xs font-medium text-zinc-600">{(s.pillars.cdc.icm || 0).toFixed(1)}%</td>
+                    <td className="py-5 px-2 text-center text-xs font-medium text-zinc-600">{(s.pillars.services.icm || 0).toFixed(1)}%</td>
+                    <td className="py-5 px-2 text-right">
+                      <span className="text-sm font-black text-primary">{(s.score || 0).toFixed(1)}%</span>
+                    </td>
+                    <td className="py-5 px-2 text-right">
+                      <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap ${
+                        s.classification === 'ELITE' ? 'bg-emerald-50 text-emerald-700' :
+                        s.classification === 'ALTO' ? 'bg-primary/10 text-primary' :
+                        s.classification === 'PARCIAL' ? 'bg-amber-50 text-amber-700' :
+                        'bg-accent/10 text-accent'
+                      }`}>
+                        {s.strategicStatus}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 10. DISPERSÃO DO TIME */}
+        <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm">
+          <TeamDispersionBlock sellers={seasonalSellers} />
+        </div>
+
+        {/* 11. PRIORIDADE ESTRATÉGICA */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <StrategicPriorityBlock sellers={seasonalSellers} store={seasonalData.store} />
+          <CollectiveImpactBlock sellers={seasonalSellers} store={seasonalData.store} />
+        </div>
+
+        {/* 12. RECONHECIMENTO E DESTAQUES */}
+        <div className="bg-white rounded-[2.5rem] border border-primary/10 shadow-sm overflow-hidden">
+          <div className="p-8 border-b flex flex-col sm:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-3">
+              <Trophy size={20} className="text-primary" />
+              <h3 className="text-xs font-black uppercase tracking-widest text-zinc-900">Reconhecimento e Destaques</h3>
+            </div>
+            <div className="flex bg-zinc-100 p-1.5 rounded-xl w-full sm:w-auto">
+              {['crown', 'mvp'].map((tab) => (
+                <button 
+                  key={tab}
+                  onClick={() => setActiveTab(tab as any)}
+                  className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black transition-all uppercase ${activeTab === tab ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+                >
+                  {tab === 'crown' ? 'Tríplice Coroa' : 'MVP'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-8 min-h-[300px]">
+            <AnimatePresence mode="wait">
+              {activeTab === 'crown' ? (
+                <motion.div key="crown" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-8">
+                  <div className="flex flex-col sm:flex-row items-center justify-between p-6 bg-primary text-white rounded-3xl gap-6">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-14 h-14 rounded-full flex items-center justify-center ${Object.values(seasonalData.store.tripleCrownStatus).every(v => v) ? 'bg-accent' : 'bg-white/10'}`}>
+                        <Award size={28} className="text-white" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-white/50 block tracking-widest mb-1">Status da Unidade</span>
+                        <span className="text-lg font-black uppercase">{Object.values(seasonalData.store.tripleCrownStatus).every(v => v) ? 'TRÍPLICE COROA CONSOLIDADA' : 'EM BUSCA DA TRÍPLICE COROA'}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      {['mercantil', 'cdc', 'services'].map(p => (
+                        <div key={p} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest ${seasonalData.store.tripleCrownStatus[p as keyof typeof seasonalData.store.tripleCrownStatus] ? 'bg-emerald-500' : 'bg-white/10'}`}>
+                          {p === 'services' ? 'Serviços' : p}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Vendedores Elegíveis (Sazonal)</h4>
+                    {tripleCrownSellers.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {tripleCrownSellers.map(s => (
+                          <TripleCrownSellerItem key={s.id} seller={s} onSelect={setSelectedSeller} periodKey={periodKey} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center bg-zinc-50 rounded-3xl border border-dashed border-zinc-200">
+                        <p className="text-xs text-zinc-500 font-bold uppercase">Nenhum vendedor atingiu a Tríplice Coroa neste período.</p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div key="mvp" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="flex flex-col md:flex-row items-center gap-12">
+                  {mvpSeller ? (
+                    <>
+                      <div className="relative">
+                        <div 
+                          className="w-48 h-48 rounded-full bg-primary flex items-center justify-center shadow-2xl cursor-pointer relative overflow-hidden border-8 border-zinc-50"
+                          onClick={() => mvpPhoto.photo ? setActivePhotoMenu('mvp') : mvpPhoto.triggerInput()}
+                        >
+                          {mvpPhoto.photo ? (
+                            <img src={mvpPhoto.photo} alt={mvpSeller.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-6xl font-black text-white">{mvpSeller.name.charAt(0)}</span>
+                          )}
+                          <input type="file" ref={mvpPhoto.fileInputRef} onChange={mvpPhoto.handleFileChange} className="hidden" accept="image/*" />
+                        </div>
+                        <div className="absolute -bottom-2 -right-2 bg-accent p-4 rounded-full border-4 border-white shadow-xl">
+                          <Trophy size={32} className="text-white" />
+                        </div>
+                      </div>
+                      <div className="flex-1 space-y-6 text-center md:text-left">
+                        <div className="space-y-2">
+                          <span className="text-[10px] font-black uppercase text-accent block tracking-[0.3em]">Most Valuable Player</span>
+                          <button onClick={() => setSelectedSeller(mvpSeller)} className="text-4xl font-black text-primary hover:opacity-70 transition-opacity underline decoration-primary/20 underline-offset-8">
+                            {mvpSeller.name}
+                          </button>
+                        </div>
+                        <div className="p-6 bg-zinc-50 rounded-3xl border border-zinc-100 relative">
+                          <span className="absolute -top-3 left-6 px-2 bg-white text-[8px] font-black text-zinc-400 uppercase tracking-widest">Justificativa Sazonal</span>
+                          <p className="text-sm text-zinc-600 leading-relaxed italic font-medium">"{seasonalData.mvpJustification}"</p>
+                        </div>
+                        <div className="flex justify-center md:justify-start gap-8">
+                          <div className="text-center">
+                            <span className="text-[10px] font-black text-zinc-400 uppercase block tracking-widest mb-1">Score Sazonal</span>
+                            <span className="text-2xl font-black text-zinc-900">{(mvpSeller.score || 0).toFixed(1)}%</span>
+                          </div>
+                          <div className="text-center">
+                            <span className="text-[10px] font-black text-zinc-400 uppercase block tracking-widest mb-1">Status</span>
+                            <span className="text-2xl font-black text-zinc-900 uppercase tracking-tighter">{mvpSeller.classification}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full text-center py-20">
+                      <p className="text-sm text-zinc-500 font-bold uppercase tracking-widest">MVP indisponível (dados insuficientes)</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* 13. GRÁFICOS */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm flex flex-col items-center relative">
+            <div className="flex items-center justify-between w-full mb-8">
+              <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">Performance Composta</h3>
+              <button onClick={() => setActiveTooltip(activeTooltip === 'composite_performance' ? null : 'composite_performance')} className="text-zinc-300 hover:text-primary transition-colors">
+                <Info size={16} />
+              </button>
+            </div>
+            <div className="h-72 w-full relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={healthData} innerRadius={80} outerRadius={100} paddingAngle={5} dataKey="value" startAngle={210} endAngle={-30}>
+                    {healthData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pt-8">
+                <span className="text-6xl font-black text-primary">{(seasonalScore.score || 0).toFixed(1)}</span>
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center mt-2">Score Sazonal</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm">
+            <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-8">Execução por Pilar (Sazonal)</h3>
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[
+                  { name: 'Mercantil', icm: seasonalScore.icms.mercantil, proj: seasonalData.projection.mercantilProjected / (seasonalData.store.pillars.mercantil.meta || 1) * 100 },
+                  { name: 'CDC', icm: seasonalScore.icms.cdc, proj: seasonalData.projection.cdcProjected / (seasonalData.store.pillars.cdc.meta || 1) * 100 },
+                  { name: 'Serviços', icm: seasonalScore.icms.services, proj: seasonalData.projection.servicesProjected / (seasonalData.store.pillars.services.meta || 1) * 100 },
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f1f1" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={11} fontWeight={900} />
+                  <YAxis axisLine={false} tickLine={false} fontSize={10} domain={[0, 120]} />
+                  <Tooltip cursor={{ fill: '#f8f9fa' }} contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="icm" name="ICM Atual" fill="#0047BA" radius={[8, 8, 0, 0]} barSize={50} />
+                  <Bar dataKey="proj" name="Projeção (%)" fill="#e4e4e7" radius={[8, 8, 0, 0]} barSize={50} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* 14. INTELIGÊNCIA ESTRATÉGICA */}
+        <IntelligenceRadar data={seasonalData} />
+
+        <AnimatePresence>
+          {selectedSeller && (
+            <FeedbackModal seller={selectedSeller} period={seasonalData.store.period} onClose={() => setSelectedSeller(null)} />
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8" id="dashboard-content">
       {/* CABEÇALHO EXECUTIVO (FIXO NO PDF) */}
@@ -452,7 +941,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
             <Trophy size={80} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-2">
-            Score {periodContext.mode === 'monthly' ? 'Sazonal' : 'Global'}
+            Score Global
           </span>
           <div className="text-6xl font-black tracking-tighter mb-2">
             {(seasonalScore.score || 0).toFixed(1)}
@@ -472,7 +961,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                 <Target size={80} />
               </div>
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">
-                ICM {label} {periodContext.mode === 'monthly' ? '(Sazonal)' : ''}
+                ICM {label}
               </span>
               <div className="text-5xl font-black tracking-tighter text-primary mb-2">{(icm || 0).toFixed(1)}%</div>
               <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden mt-2">
@@ -487,10 +976,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         })}
       </section>
 
-      {/* NOVO BLOCO: RITMO SAZONAL */}
-      {periodContext.mode === 'monthly' && (
-        <SeasonalPaceBlock context={periodContext} />
-      )}
+      {/* NOVO BLOCO: RITMO SAZONAL (Removido pois é exclusivo da visão mensal acima) */}
 
       {/* NÍVEL 2 — DIAGNÓSTICO OPERACIONAL */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -507,7 +993,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         <div className="flex items-center gap-3 mb-4">
           <span className="text-2xl">📊</span>
           <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">
-            Status da Operação {periodContext.mode === 'monthly' ? '(Sazonal)' : ''}:
+            Status da Operação:
           </h3>
         </div>
         <div className={`text-3xl font-black tracking-tighter ${getOperationStatus(seasonalScore.score).color}`}>
@@ -675,7 +1161,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         <div className="bg-white p-8 rounded-[2.5rem] border border-primary/10 shadow-sm">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xs font-bold uppercase text-zinc-400">
-              Ranking de Performance Individual {periodContext.mode === 'monthly' ? '(Sazonal)' : ''}
+              Ranking de Performance Individual
             </h3>
             <div className="flex gap-4 text-[10px] font-bold uppercase">
               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Elite</div>
@@ -724,13 +1210,13 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                     <td className="py-4 px-2 text-right">
                       <div className="flex flex-col items-end gap-1">
                         <div className="flex items-center gap-2">
-                          <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${
-                            s.classification === 'Elite' ? 'bg-emerald-50 text-emerald-700' :
-                            s.classification === 'Alto' ? 'bg-primary/10 text-primary' :
-                            s.classification === 'Parcial' ? 'bg-amber-50 text-amber-700' :
+                          <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full whitespace-nowrap ${
+                            s.classification === 'ELITE' ? 'bg-emerald-50 text-emerald-700' :
+                            s.classification === 'ALTO' ? 'bg-primary/10 text-primary' :
+                            s.classification === 'PARCIAL' ? 'bg-amber-50 text-amber-700' :
                             'bg-accent/10 text-accent'
                           }`}>
-                            {s.classification}
+                            {s.strategicStatus}
                           </span>
                           {s.profile && (
                             <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded border ${
@@ -769,55 +1255,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         </div>
       </section>
 
-      {/* LAYER 3: TENDÊNCIA FUTURA */}
-      {seasonalData.trendSimulation?.isAvailable && periodContext.mode === 'monthly' && (
-        <section className="bg-zinc-900 p-8 rounded-[2.5rem] text-white space-y-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-5">
-            <Target size={200} />
-          </div>
-          
-          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Sparkles size={20} className="text-accent" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-accent">3. Tendência Futura (Simulação Estratégica)</h3>
-              </div>
-              <p className="text-white/60 text-xs max-w-md">Simulação de fechamento ponderada: 40% ritmo atual + 60% média histórica dos últimos 2 períodos fechados.</p>
-            </div>
-            <div className="text-right">
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-1">Score Projetado</span>
-              <div className="flex items-baseline gap-3">
-                <span className="text-5xl font-black text-white">{(data.trendSimulation.projectedScore || 0).toFixed(1)}</span>
-                <span className={`text-xs font-black uppercase px-3 py-1 rounded-full ${
-                  data.trendSimulation.projectedScore >= 80 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-accent/20 text-accent'
-                }`}>
-                  {data.trendSimulation.projectedClassification}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {(['mercantil', 'cdc', 'services'] as const).map(p => (
-              <div key={p} className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black uppercase text-white/40">{p === 'services' ? 'Serviços' : p}</span>
-                  <span className="text-lg font-black text-white">{(data.trendSimulation![p].icm || 0).toFixed(1)}%</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-white/30 uppercase block">Entrega Projetada</span>
-                  <span className="text-sm font-bold text-white">{formatCurrencyBR(data.trendSimulation![p].projected)}</span>
-                </div>
-                <div className={`text-[10px] font-bold uppercase p-2 rounded-lg text-center ${
-                  data.trendSimulation![p].gap <= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-accent/10 text-accent'
-                }`}>
-                  {data.trendSimulation![p].gap <= 0 ? 'Meta Superada' : `Gap de ${formatCurrencyBR(data.trendSimulation![p].gap)}`}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* LAYER 3: TENDÊNCIA FUTURA (Removido pois é exclusivo da visão mensal acima) */}
 
       {/* Indicator Deep Dive */}
       <div className="bg-white p-6 rounded-3xl border border-primary/10 shadow-sm space-y-6">
@@ -1120,7 +1558,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                 {(seasonalScore.score || 0).toFixed(1)}
               </span>
               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-center">
-                Score {periodContext.mode === 'monthly' ? 'Sazonal' : 'Global'}
+                Score Global
               </span>
             </div>
           </div>
@@ -1129,7 +1567,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         {/* Pillars Performance */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-primary/10 shadow-sm">
           <h3 className="text-xs font-bold uppercase text-zinc-400 mb-6">
-            Execução por Pilar {periodContext.mode === 'monthly' ? '(Sazonal)' : ''}
+            Execução por Pilar
           </h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">

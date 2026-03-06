@@ -476,21 +476,23 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-8"
             >
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                <div>
-                  <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-primary">{processedData.store.name}</h2>
-                  <p className="text-xs md:text-sm font-medium text-zinc-500">Relatório de Performance Estratégica • {processedData.store.period.label}</p>
-                </div>
-                <div className="text-left sm:text-right">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-1">Status da Operação</span>
-                  <div className={`inline-block px-4 py-1 rounded-full text-xs font-bold uppercase ${
-                    processedData.store.healthIndex >= 80 ? 'bg-emerald-100 text-emerald-700' : 
-                    processedData.store.healthIndex >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-accent/10 text-accent'
-                  }`}>
-                    {processedData.store.classification}
+              {periodMode !== 'MENSAL' && (
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-primary">{processedData.store.name}</h2>
+                    <p className="text-xs md:text-sm font-medium text-zinc-500">Relatório de Performance Estratégica • {processedData.store.period.label}</p>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-1">Status da Operação</span>
+                    <div className={`inline-block px-4 py-1 rounded-full text-xs font-bold uppercase ${
+                      processedData.store.healthIndex >= 80 ? 'bg-emerald-100 text-emerald-700' : 
+                      processedData.store.healthIndex >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-accent/10 text-accent'
+                    }`}>
+                      {processedData.store.classification}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <Dashboard data={processedData} history={currentHistory} fullHistory={history} />
               
