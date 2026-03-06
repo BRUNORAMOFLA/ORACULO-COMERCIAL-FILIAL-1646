@@ -84,15 +84,15 @@ export function getSeasonalData(data: OracleData, fullHistory: OracleHistoryV1):
       // 2. Calculate Store Data
       storeData = {
         mercantil: {
-          meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
+          meta: mode === 'monthly' ? (data.store.pillars.mercantil.metaMensal || data.store.pillars.mercantil.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
           real: sellersData.reduce((acc, s) => acc + s.mercantil.real, 0)
         },
         cdc: {
-          meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
+          meta: mode === 'monthly' ? (data.store.pillars.cdc.metaMensal || data.store.pillars.cdc.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
           real: sellersData.reduce((acc, s) => acc + s.cdc.real, 0)
         },
         services: {
-          meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
+          meta: mode === 'monthly' ? (data.store.pillars.services.metaMensal || data.store.pillars.services.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
           real: sellersData.reduce((acc, s) => acc + s.services.real, 0)
         }
       };

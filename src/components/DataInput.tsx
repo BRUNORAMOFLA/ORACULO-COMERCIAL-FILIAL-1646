@@ -47,9 +47,9 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
       id: crypto.randomUUID(),
       name: '',
       pillars: {
-        mercantil: { meta: 0, realized: 0, icm: 0, gap: 0 },
-        cdc: { meta: 0, realized: 0, icm: 0, gap: 0 },
-        services: { meta: 0, realized: 0, icm: 0, gap: 0 },
+        mercantil: { meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0 },
+        cdc: { meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0 },
+        services: { meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0 },
       },
       operational: {
         cards: { meta: 0, realized: 0 },
@@ -213,9 +213,11 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
         </div>
       </section>
 
-      {/* Store Pillars */}
+      {/* Meta Mensal Linear */}
       <section className="bg-white p-4 md:p-6 rounded-2xl border border-primary/10 shadow-sm space-y-6">
-        <h2 className="text-lg md:text-xl font-bold text-primary border-b pb-4">Metas da Unidade</h2>
+        <h2 className="text-lg md:text-xl font-bold text-primary border-b pb-4 flex items-center gap-2">
+          <CreditCard size={20} className="text-accent" /> Metas Mensais (Linear)
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {(['mercantil', 'cdc', 'services'] as const).map(p => (
             <div key={p} className="p-4 bg-zinc-50 rounded-xl space-y-4 border border-zinc-100">
@@ -224,9 +226,9 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <NumberInput 
-                  label="Meta (R$)"
-                  value={data.store.pillars[p].meta}
-                  onChange={val => updateStorePillar(p, 'meta', val)}
+                  label="Meta Mensal (R$)"
+                  value={data.store.pillars[p].metaMensal || data.store.pillars[p].meta}
+                  onChange={val => updateStorePillar(p, 'metaMensal', val)}
                 />
                 <NumberInput 
                   label="Realizado (R$)"
@@ -271,7 +273,37 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
             </div>
           ))}
         </div>
+      </section>
 
+      {/* Meta Sazonal */}
+      <section className="bg-white p-4 md:p-6 rounded-2xl border border-primary/10 shadow-sm space-y-6">
+        <h2 className="text-lg md:text-xl font-bold text-primary border-b pb-4 flex items-center gap-2">
+          <Package size={20} className="text-accent" /> Metas Sazonais (Acumulado Esperado)
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {(['mercantil', 'cdc', 'services'] as const).map(p => (
+            <div key={p} className="p-4 bg-zinc-50 rounded-xl space-y-4 border border-zinc-100">
+              <h3 className="text-xs font-black uppercase tracking-tighter text-primary text-center border-b pb-2">
+                {p === 'services' ? 'Serviços' : p.charAt(0).toUpperCase() + p.slice(1)}
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <NumberInput 
+                  label="Meta Esperada (R$)"
+                  value={data.store.pillars[p].metaEsperada || 0}
+                  onChange={val => updateStorePillar(p, 'metaEsperada', val)}
+                />
+                <NumberInput 
+                  label="Realizado (R$)"
+                  value={data.store.pillars[p].realized}
+                  onChange={val => updateStorePillar(p, 'realized', val)}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-white p-4 md:p-6 rounded-2xl border border-primary/10 shadow-sm space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
           <div className="p-4 bg-zinc-50 rounded-xl space-y-4 border border-zinc-100">
             <h3 className="text-xs font-black uppercase tracking-tighter text-primary text-center border-b pb-2 flex items-center justify-center gap-2">

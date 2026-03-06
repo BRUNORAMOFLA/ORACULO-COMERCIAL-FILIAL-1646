@@ -261,14 +261,14 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
     result.projection.cdcProjected = store.pillars.cdc.realized * projectionFactor;
     result.projection.servicesProjected = store.pillars.services.realized * projectionFactor;
 
-    result.projection.mercantilGap = store.pillars.mercantil.meta - result.projection.mercantilProjected;
-    result.projection.cdcGap = store.pillars.cdc.meta - result.projection.cdcProjected;
-    result.projection.servicesGap = store.pillars.services.meta - result.projection.servicesProjected;
+    result.projection.mercantilGap = (store.pillars.mercantil.metaMensal || store.pillars.mercantil.meta) - result.projection.mercantilProjected;
+    result.projection.cdcGap = (store.pillars.cdc.metaMensal || store.pillars.cdc.meta) - result.projection.cdcProjected;
+    result.projection.servicesGap = (store.pillars.services.metaMensal || store.pillars.services.meta) - result.projection.servicesProjected;
 
     const avgProjectedICM = calculateHealthIndex(
-      (result.projection.mercantilProjected / (store.pillars.mercantil.meta || 1)) * 100,
-      (result.projection.cdcProjected / (store.pillars.cdc.meta || 1)) * 100,
-      (result.projection.servicesProjected / (store.pillars.services.meta || 1)) * 100
+      (result.projection.mercantilProjected / ((store.pillars.mercantil.metaMensal || store.pillars.mercantil.meta) || 1)) * 100,
+      (result.projection.cdcProjected / ((store.pillars.cdc.metaMensal || store.pillars.cdc.meta) || 1)) * 100,
+      (result.projection.servicesProjected / ((store.pillars.services.metaMensal || store.pillars.services.meta) || 1)) * 100
     );
 
     if (elapsed === 0) {

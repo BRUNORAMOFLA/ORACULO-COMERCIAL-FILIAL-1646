@@ -15,7 +15,7 @@ export const SeasonalPaceBlock: React.FC<Props> = ({ context }) => {
     const pillars = ['mercantil', 'cdc', 'services'] as const;
 
     return pillars.map(p => {
-      const expectedAccumulatedMeta = context.store[p].meta;
+      const expectedAccumulatedMeta = context.store[p].metaEsperada || context.store[p].meta;
       const accumulatedRealized = context.store[p].real;
       const gapSazonal = accumulatedRealized - expectedAccumulatedMeta;
       const icm = calculateICM(accumulatedRealized, expectedAccumulatedMeta);
