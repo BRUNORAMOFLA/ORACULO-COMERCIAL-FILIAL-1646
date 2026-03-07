@@ -53,6 +53,7 @@ import { CollectiveImpactBlock } from './CollectiveImpactBlock';
 import { OperationalBottleneckRadar } from './OperationalBottleneckRadar';
 import { TeamDispersionBlock } from './TeamDispersionBlock';
 import { SeasonalPaceBlock } from './SeasonalPaceBlock';
+import { ProbabilityBlock } from './ProbabilityBlock';
 import { 
   exportToExcel, 
   exportToPDF, 
@@ -101,17 +102,20 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
       mercantil: { 
         meta: data.store.pillars.mercantil.meta, 
         real: data.store.pillars.mercantil.realized,
-        metaMensal: data.store.pillars.mercantil.metaMensal 
+        metaMensal: data.store.pillars.mercantil.metaMensal,
+        metaEsperada: data.store.pillars.mercantil.metaEsperada
       },
       cdc: { 
         meta: data.store.pillars.cdc.meta, 
         real: data.store.pillars.cdc.realized,
-        metaMensal: data.store.pillars.cdc.metaMensal 
+        metaMensal: data.store.pillars.cdc.metaMensal,
+        metaEsperada: data.store.pillars.cdc.metaEsperada
       },
       services: { 
         meta: data.store.pillars.services.meta, 
         real: data.store.pillars.services.realized,
-        metaMensal: data.store.pillars.services.metaMensal 
+        metaMensal: data.store.pillars.services.metaMensal,
+        metaEsperada: data.store.pillars.services.metaEsperada
       }
     };
 
@@ -177,17 +181,20 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
           mercantil: {
             meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
             real: sellersData.reduce((acc, s) => acc + s.mercantil.real, 0),
-            metaMensal: data.store.pillars.mercantil.metaMensal
+            metaMensal: data.store.pillars.mercantil.metaMensal,
+            metaEsperada: data.store.pillars.mercantil.metaEsperada
           },
           cdc: {
             meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
             real: sellersData.reduce((acc, s) => acc + s.cdc.real, 0),
-            metaMensal: data.store.pillars.cdc.metaMensal
+            metaMensal: data.store.pillars.cdc.metaMensal,
+            metaEsperada: data.store.pillars.cdc.metaEsperada
           },
           services: {
             meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
             real: sellersData.reduce((acc, s) => acc + s.services.real, 0),
-            metaMensal: data.store.pillars.services.metaMensal
+            metaMensal: data.store.pillars.services.metaMensal,
+            metaEsperada: data.store.pillars.services.metaEsperada
           }
         };
 
@@ -214,9 +221,9 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
   }, [data, fullHistory, filteredSellers]);
 
   const seasonalScore = useMemo(() => {
-    const icmMerc = calculateICM(periodContext.store.mercantil.real, periodContext.store.mercantil.meta);
-    const icmCdc = calculateICM(periodContext.store.cdc.real, periodContext.store.cdc.meta);
-    const icmServ = calculateICM(periodContext.store.services.real, periodContext.store.services.meta);
+    const icmMerc = calculateICM(periodContext.store.mercantil.real, periodContext.store.mercantil.metaEsperada || periodContext.store.mercantil.meta);
+    const icmCdc = calculateICM(periodContext.store.cdc.real, periodContext.store.cdc.metaEsperada || periodContext.store.cdc.meta);
+    const icmServ = calculateICM(periodContext.store.services.real, periodContext.store.services.metaEsperada || periodContext.store.services.meta);
     
     const score = calculateHealthIndex(icmMerc, icmCdc, icmServ);
     
@@ -564,7 +571,8 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {(['mercantil', 'cdc', 'services'] as const).map(p => {
               const remainingDays = seasonalData.store.period.businessDaysTotal - seasonalData.store.period.businessDaysElapsed;
-              const neededDaily = remainingDays > 0 ? Math.max(0, (seasonalData.store.pillars[p].meta - seasonalData.store.pillars[p].realized) / remainingDays) : 0;
+              const monthlyMeta = seasonalData.store.pillars[p].metaMensal || seasonalData.store.pillars[p].meta;
+              const neededDaily = remainingDays > 0 ? Math.max(0, (monthlyMeta - seasonalData.store.pillars[p].realized) / remainingDays) : 0;
               return (
                 <div key={p} className="p-6 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-4">
                   <div className="flex justify-between items-center">
@@ -584,6 +592,9 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
             })}
           </div>
         </div>
+
+        {/* PROBABILIDADE DE FECHAMENTO DA META */}
+        <ProbabilityBlock context={periodContext} />
 
         {/* 7. PROJEÇÃO DO MÊS */}
         <div className="bg-primary text-white p-8 rounded-[2.5rem] shadow-xl shadow-primary/20 relative overflow-hidden">

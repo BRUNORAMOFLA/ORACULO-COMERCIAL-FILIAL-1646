@@ -25,6 +25,7 @@ export interface OperationalIndicator {
 export interface PillarBase {
   meta: number;
   metaMensal?: number;
+  metaEsperada?: number;
   realized: number;
   icm: number;
   gap: number;
@@ -72,6 +73,7 @@ export interface Store {
 export interface SellerPillar {
   meta: number;
   metaMensal?: number;
+  metaEsperada?: number;
   realized: number;
   icm: number;
   gap: number;
@@ -197,9 +199,9 @@ export interface PeriodContext {
   businessDaysTotal?: number;
   businessDaysElapsed?: number;
   store: {
-    mercantil: { meta: number; real: number; metaMensal?: number };
-    cdc: { meta: number; real: number; metaMensal?: number };
-    services: { meta: number; real: number; metaMensal?: number };
+    mercantil: { meta: number; real: number; metaMensal?: number; metaEsperada?: number };
+    cdc: { meta: number; real: number; metaMensal?: number; metaEsperada?: number };
+    services: { meta: number; real: number; metaMensal?: number; metaEsperada?: number };
   };
   sellers: {
     name: string;
