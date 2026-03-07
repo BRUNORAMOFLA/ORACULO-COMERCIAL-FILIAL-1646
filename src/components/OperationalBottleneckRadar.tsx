@@ -17,10 +17,9 @@ export const OperationalBottleneckRadar: React.FC<Props> = ({ context }) => {
   ] as const;
 
   const analysis = pillars.map(p => {
-    const meta = context.mode === 'monthly' ? (context.store[p.id].metaEsperada || context.store[p.id].meta) : context.store[p.id].meta;
-    const icm = calculateICM(context.store[p.id].real, meta);
+    const icm = calculateICM(context.store[p.id].real, context.store[p.id].meta);
     const distance = calculateDistance(icm);
-    const gap = meta - context.store[p.id].real;
+    const gap = context.store[p.id].meta - context.store[p.id].real;
     return { ...p, icm, distance, gap };
   }).sort((a, b) => b.distance - a.distance);
 

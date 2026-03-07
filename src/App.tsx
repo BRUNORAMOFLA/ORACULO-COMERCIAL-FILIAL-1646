@@ -103,13 +103,13 @@ const INITIAL_STATE: OracleData = {
       businessDaysElapsed: 10
     },
     pillars: {
-      mercantil: { meta: 0, metaMensal: 0, metaEsperada: 0, realized: 0, icm: 0, gap: 0 },
+      mercantil: { meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0 },
       cdc: { 
-        meta: 0, metaMensal: 0, metaEsperada: 0, realized: 0, icm: 0, gap: 0,
+        meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0,
         participation: { meta: 0, realized: 0, achievement: 0 }
       },
       services: { 
-        meta: 0, metaMensal: 0, metaEsperada: 0, realized: 0, icm: 0, gap: 0,
+        meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0,
         efficiency: { meta: 0, realized: 0, achievement: 0 }
       },
       operational: {

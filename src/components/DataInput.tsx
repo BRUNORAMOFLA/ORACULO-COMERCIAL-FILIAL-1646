@@ -18,6 +18,20 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
       (newData.store.pillars[pillar] as any)[sub][subField] = value;
     } else {
       (newData.store.pillars[pillar] as any)[field] = value;
+      
+      // If updating metaMensal, also update meta for the current period
+      if (field === 'metaMensal') {
+        const period = newData.store.period;
+        if (period.type === 'daily') {
+          newData.store.pillars[pillar].meta = value / (period.businessDaysTotal || 1);
+        } else if (period.type === 'weekly') {
+          // Weekly meta is proportional to the number of days in the week vs total month
+          // For simplicity, we use a standard 5-day week if not specified
+          newData.store.pillars[pillar].meta = value * (5 / (period.businessDaysTotal || 25));
+        } else {
+          newData.store.pillars[pillar].meta = value;
+        }
+      }
     }
     onChange(newData);
   };
@@ -87,6 +101,15 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
   const updatePeriodMetadata = (field: 'businessDaysTotal' | 'businessDaysElapsed', value: number) => {
     const newData: OracleData = JSON.parse(JSON.stringify(data));
     newData.store.period[field] = value;
+    
+    // If businessDaysTotal changes, we must recalculate daily metas from metaMensal
+    if (field === 'businessDaysTotal' && newData.store.period.type === 'daily') {
+      (['mercantil', 'cdc', 'services'] as const).forEach(p => {
+        const monthlyMeta = newData.store.pillars[p].metaMensal || newData.store.pillars[p].meta;
+        newData.store.pillars[p].meta = monthlyMeta / (value || 1);
+      });
+    }
+    
     onChange(newData);
   };
 
@@ -213,11 +236,9 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
         </div>
       </section>
 
-      {/* Meta Mensal Linear */}
+      {/* Store Pillars */}
       <section className="bg-white p-4 md:p-6 rounded-2xl border border-primary/10 shadow-sm space-y-6">
-        <h2 className="text-lg md:text-xl font-bold text-primary border-b pb-4 flex items-center gap-2">
-          <CreditCard size={20} className="text-accent" /> Metas Mensais (Linear)
-        </h2>
+        <h2 className="text-lg md:text-xl font-bold text-primary border-b pb-4">Metas da Unidade</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {(['mercantil', 'cdc', 'services'] as const).map(p => (
             <div key={p} className="p-4 bg-zinc-50 rounded-xl space-y-4 border border-zinc-100">
@@ -273,37 +294,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
             </div>
           ))}
         </div>
-      </section>
 
-      {/* Meta Sazonal */}
-      <section className="bg-white p-4 md:p-6 rounded-2xl border border-primary/10 shadow-sm space-y-6">
-        <h2 className="text-lg md:text-xl font-bold text-primary border-b pb-4 flex items-center gap-2">
-          <Package size={20} className="text-accent" /> Metas Sazonais (Acumulado Esperado)
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {(['mercantil', 'cdc', 'services'] as const).map(p => (
-            <div key={p} className="p-4 bg-zinc-50 rounded-xl space-y-4 border border-zinc-100">
-              <h3 className="text-xs font-black uppercase tracking-tighter text-primary text-center border-b pb-2">
-                {p === 'services' ? 'Serviços' : p.charAt(0).toUpperCase() + p.slice(1)}
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <NumberInput 
-                  label="Meta Esperada (R$)"
-                  value={data.store.pillars[p].metaEsperada || 0}
-                  onChange={val => updateStorePillar(p, 'metaEsperada', val)}
-                />
-                <NumberInput 
-                  label="Realizado (R$)"
-                  value={data.store.pillars[p].realized}
-                  onChange={val => updateStorePillar(p, 'realized', val)}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-white p-4 md:p-6 rounded-2xl border border-primary/10 shadow-sm space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
           <div className="p-4 bg-zinc-50 rounded-xl space-y-4 border border-zinc-100">
             <h3 className="text-xs font-black uppercase tracking-tighter text-primary text-center border-b pb-2 flex items-center justify-center gap-2">
