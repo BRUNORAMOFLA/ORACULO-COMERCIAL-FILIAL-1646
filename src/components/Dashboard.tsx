@@ -53,7 +53,6 @@ import { CollectiveImpactBlock } from './CollectiveImpactBlock';
 import { OperationalBottleneckRadar } from './OperationalBottleneckRadar';
 import { TeamDispersionBlock } from './TeamDispersionBlock';
 import { SeasonalPaceBlock } from './SeasonalPaceBlock';
-import { ProbabilityBlock } from './ProbabilityBlock';
 import { 
   exportToExcel, 
   exportToPDF, 
@@ -592,9 +591,6 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
             })}
           </div>
         </div>
-
-        {/* PROBABILIDADE DE FECHAMENTO DA META */}
-        <ProbabilityBlock context={periodContext} />
 
         {/* 7. PROJEÇÃO DO MÊS */}
         <div className="bg-primary text-white p-8 rounded-[2.5rem] shadow-xl shadow-primary/20 relative overflow-hidden">
