@@ -594,9 +594,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         </div>
 
         {/* PROBABILIDADE DE FECHAMENTO DA META */}
-        {data.store.period.type === 'monthly' && fullHistory?.diario && (
-          <ProbabilityBlock context={periodContext} history={fullHistory.diario} />
-        )}
+        <ProbabilityBlock context={periodContext} />
 
         {/* 7. PROJEÇÃO DO MÊS */}
         <div className="bg-primary text-white p-8 rounded-[2.5rem] shadow-xl shadow-primary/20 relative overflow-hidden">

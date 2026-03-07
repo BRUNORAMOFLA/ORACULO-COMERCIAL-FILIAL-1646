@@ -28,7 +28,7 @@ function analyzeTrend(values: number[]): string {
   return "Volatilidade no desempenho.";
 }
 
-export function processOracle(data: OracleData, history: HistoryRecord[] = [], dailyHistory: HistoryRecord[] = []): OracleResult {
+export function processOracle(data: OracleData, history: HistoryRecord[] = []): OracleResult {
   const result = JSON.parse(JSON.stringify(data)) as OracleResult;
   const { store, sellers } = result;
 
@@ -254,65 +254,28 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = [], d
   if (store.period.businessDaysTotal > 0) {
     const elapsed = store.period.businessDaysElapsed;
     const total = store.period.businessDaysTotal;
-    const remaining = Math.max(0, total - elapsed);
-
-    const calculateRecentMedia = (pillar: 'mercantil' | 'cdc' | 'services') => {
-      // Use dailyHistory if provided, otherwise fallback to history
-      const source = dailyHistory.length > 0 ? dailyHistory : history;
-      
-      // Filter history for daily records with realized > 0 for this pillar
-      const validDailyRecords = source
-        .filter(r => r.tipo === 'daily' && r.dados.store.pillars[pillar].realized > 0)
-        .slice(0, 3);
-      
-      if (validDailyRecords.length === 0) return 0;
-      
-      const sum = validDailyRecords.reduce((acc, r) => acc + r.dados.store.pillars[pillar].realized, 0);
-      return sum / validDailyRecords.length;
-    };
-
-    const mediaMercantil = calculateRecentMedia('mercantil');
-    const mediaCDC = calculateRecentMedia('cdc');
-    const mediaServices = calculateRecentMedia('services');
+    const projectionFactor = elapsed > 0 ? total / elapsed : 0;
     
     result.projection.isAvailable = true;
-    result.projection.mercantilProjected = store.pillars.mercantil.realized + (mediaMercantil * remaining);
-    result.projection.cdcProjected = store.pillars.cdc.realized + (mediaCDC * remaining);
-    result.projection.servicesProjected = store.pillars.services.realized + (mediaServices * remaining);
+    result.projection.mercantilProjected = store.pillars.mercantil.realized * projectionFactor;
+    result.projection.cdcProjected = store.pillars.cdc.realized * projectionFactor;
+    result.projection.servicesProjected = store.pillars.services.realized * projectionFactor;
 
-    const metaMercantil = store.pillars.mercantil.metaMensal || store.pillars.mercantil.meta;
-    const metaCDC = store.pillars.cdc.metaMensal || store.pillars.cdc.meta;
-    const metaServices = store.pillars.services.metaMensal || store.pillars.services.meta;
+    result.projection.mercantilGap = (store.pillars.mercantil.metaMensal || store.pillars.mercantil.meta) - result.projection.mercantilProjected;
+    result.projection.cdcGap = (store.pillars.cdc.metaMensal || store.pillars.cdc.meta) - result.projection.cdcProjected;
+    result.projection.servicesGap = (store.pillars.services.metaMensal || store.pillars.services.meta) - result.projection.servicesProjected;
 
-    result.projection.mercantilGap = Math.max(0, metaMercantil - result.projection.mercantilProjected);
-    result.projection.cdcGap = Math.max(0, metaCDC - result.projection.cdcProjected);
-    result.projection.servicesGap = Math.max(0, metaServices - result.projection.servicesProjected);
+    const avgProjectedICM = calculateHealthIndex(
+      (result.projection.mercantilProjected / ((store.pillars.mercantil.metaMensal || store.pillars.mercantil.meta) || 1)) * 100,
+      (result.projection.cdcProjected / ((store.pillars.cdc.metaMensal || store.pillars.cdc.meta) || 1)) * 100,
+      (result.projection.servicesProjected / ((store.pillars.services.metaMensal || store.pillars.services.meta) || 1)) * 100
+    );
 
-    const calculateProb = (projected: number, meta: number, realized: number) => {
-      if (realized >= meta) return { score: 100, label: 'MUITO ALTA' };
-      if (meta <= 0) return { score: 0, label: 'N/A' };
-      
-      const indice = projected / meta;
-      if (indice >= 1.00) return { score: 95, label: 'MUITO ALTA' };
-      if (indice >= 0.90) return { score: 80, label: 'ALTA' };
-      if (indice >= 0.80) return { score: 60, label: 'MÉDIA' };
-      if (indice >= 0.65) return { score: 40, label: 'BAIXA' };
-      return { score: 20, label: 'CRÍTICA' };
-    };
-
-    const probMercantil = calculateProb(result.projection.mercantilProjected, metaMercantil, store.pillars.mercantil.realized);
-    const probCDC = calculateProb(result.projection.cdcProjected, metaCDC, store.pillars.cdc.realized);
-    const probServices = calculateProb(result.projection.servicesProjected, metaServices, store.pillars.services.realized);
-
-    // For legacy probability field (overall)
-    const avgScore = (probMercantil.score + probCDC.score + probServices.score) / 3;
     if (elapsed === 0) {
       result.projection.probability = 'Planejamento';
-    } else if (avgScore >= 90) {
-      result.projection.probability = 'Muito Alta';
-    } else if (avgScore >= 75) {
+    } else if (avgProjectedICM >= 100) {
       result.projection.probability = 'Alta';
-    } else if (avgScore >= 55) {
+    } else if (avgProjectedICM >= 90) {
       result.projection.probability = 'Média';
     } else {
       result.projection.probability = 'Baixa';

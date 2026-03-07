@@ -173,7 +173,7 @@ export default function App() {
   }, [history, periodMode]);
 
   const processedData = useMemo(() => {
-    const baseData = processOracle(data, currentHistory, history.diario);
+    const baseData = processOracle(data, currentHistory);
     return getSeasonalData(baseData, history);
   }, [data, currentHistory, history]);
 
