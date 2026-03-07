@@ -39,48 +39,6 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = [], d
   store.period.label = generatePeriodLabel(store.period);
   result.generatedAt = new Date().toISOString();
 
-  // 0.1. Process Daily Goals if available
-  if (data.dailyGoals && data.dailyGoals.length > 0) {
-    const currentDay = store.period.date ? parseInt(store.period.date.split('-')[2]) : store.period.businessDaysElapsed;
-    
-    const totalMeta = data.dailyGoals.reduce((acc, g) => ({
-      mercantil: acc.mercantil + g.mercantil,
-      cdc: acc.cdc + g.cdc,
-      services: acc.services + g.services
-    }), { mercantil: 0, cdc: 0, services: 0 });
-
-    const expectedMeta = data.dailyGoals
-      .filter(g => g.day <= currentDay)
-      .reduce((acc, g) => ({
-        mercantil: acc.mercantil + g.mercantil,
-        cdc: acc.cdc + g.cdc,
-        services: acc.services + g.services
-      }), { mercantil: 0, cdc: 0, services: 0 });
-
-    if (store.period.type === 'monthly') {
-      store.pillars.mercantil.meta = totalMeta.mercantil;
-      store.pillars.cdc.meta = totalMeta.cdc;
-      store.pillars.services.meta = totalMeta.services;
-    } else if (store.period.type === 'daily') {
-      const todayGoal = data.dailyGoals.find(g => g.day === currentDay);
-      if (todayGoal) {
-        store.pillars.mercantil.meta = todayGoal.mercantil;
-        store.pillars.cdc.meta = todayGoal.cdc;
-        store.pillars.services.meta = todayGoal.services;
-      }
-    }
-    
-    // Always update metaMensal and metaEsperada for calculations
-    store.pillars.mercantil.metaMensal = totalMeta.mercantil;
-    store.pillars.mercantil.metaEsperada = expectedMeta.mercantil;
-
-    store.pillars.cdc.metaMensal = totalMeta.cdc;
-    store.pillars.cdc.metaEsperada = expectedMeta.cdc;
-
-    store.pillars.services.metaMensal = totalMeta.services;
-    store.pillars.services.metaEsperada = expectedMeta.services;
-  }
-
   // 1. Calculate Store Pillars
   store.pillars.mercantil.icm = calculateICM(store.pillars.mercantil.realized, store.pillars.mercantil.meta);
   store.pillars.mercantil.gap = calculateGap(store.pillars.mercantil.meta, store.pillars.mercantil.realized);
@@ -297,21 +255,6 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = [], d
     const elapsed = store.period.businessDaysElapsed;
     const total = store.period.businessDaysTotal;
     const remaining = Math.max(0, total - elapsed);
-    const currentDay = store.period.date ? parseInt(store.period.date.split('-')[2]) : elapsed;
-
-    if (data.dailyGoals && data.dailyGoals.length > 0) {
-      const remainingPlanned = data.dailyGoals
-        .filter(g => g.day > currentDay)
-        .reduce((acc, g) => ({
-          mercantil: acc.mercantil + g.mercantil,
-          cdc: acc.cdc + g.cdc,
-          services: acc.services + g.services
-        }), { mercantil: 0, cdc: 0, services: 0 });
-      
-      result.projection.mercantilRemainingPlanned = remainingPlanned.mercantil;
-      result.projection.cdcRemainingPlanned = remainingPlanned.cdc;
-      result.projection.servicesRemainingPlanned = remainingPlanned.services;
-    }
 
     const calculateRecentMedia = (pillar: 'mercantil' | 'cdc' | 'services') => {
       // Use dailyHistory if provided, otherwise fallback to history

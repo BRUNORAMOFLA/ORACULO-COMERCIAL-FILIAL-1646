@@ -130,9 +130,6 @@ export interface Projection {
   isAvailable: boolean;
   daysTotal: number;
   daysElapsed: number;
-  mercantilRemainingPlanned?: number;
-  cdcRemainingPlanned?: number;
-  servicesRemainingPlanned?: number;
 }
 
 export interface Simulator {
@@ -214,13 +211,6 @@ export interface PeriodContext {
   }[];
 }
 
-export interface DailyGoal {
-  day: number;
-  mercantil: number;
-  cdc: number;
-  services: number;
-}
-
 export interface OracleData {
   store: Store;
   sellers: Seller[];
@@ -234,7 +224,6 @@ export interface OracleData {
   generatedAt: string;
   mvpJustification?: string;
   mvpId?: string;
-  dailyGoals?: DailyGoal[];
   intelligence?: {
     radar: IntelligenceRadar;
     storeTrend: TrendAnalysis;
