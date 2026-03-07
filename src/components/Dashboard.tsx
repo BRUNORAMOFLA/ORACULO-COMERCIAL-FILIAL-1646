@@ -627,6 +627,12 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                     <span className={`text-[10px] font-black uppercase ${seasonalData.projection[`${p}Gap` as keyof typeof seasonalData.projection] as number <= 0 ? 'text-emerald-400' : 'text-accent'}`}>
                       {seasonalData.projection[`${p}Gap` as keyof typeof seasonalData.projection] as number <= 0 ? 'Meta Superada' : `Gap: ${formatCurrencyBR(seasonalData.projection[`${p}Gap` as keyof typeof seasonalData.projection] as number)}`}
                     </span>
+                    {seasonalData.projection[`${p}RemainingPlanned` as keyof typeof seasonalData.projection] !== undefined && (
+                      <div className="mt-2 pt-2 border-t border-white/5 flex justify-between items-center">
+                        <span className="text-[8px] font-bold text-white/40 uppercase">Meta Restante Planejada</span>
+                        <span className="text-[10px] font-bold text-white/70">{formatCurrencyBR(seasonalData.projection[`${p}RemainingPlanned` as keyof typeof seasonalData.projection] as number)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

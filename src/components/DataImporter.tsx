@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { OracleData, Seller } from '../types/oracle';
+import { OracleData, Seller, DailyGoal } from '../types/oracle';
 import { FileText, Download, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface Props {
@@ -140,6 +140,52 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
         if (sellers.length > 0) newData.sellers = sellers;
       }
 
+      // 3. Process Daily Goals Block (Explicit Delimiters)
+      const dailyGoalsMatch = text.match(/\[METAS_DIARIAS_INICIO\]([\s\S]*?)\[METAS_DIARIAS_FIM\]/i);
+      if (dailyGoalsMatch) {
+        const dailyText = dailyGoalsMatch[1];
+        const dailyLines = dailyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const dailyGoals: DailyGoal[] = [];
+        
+        let currentDay: number | null = null;
+        let currentMercantil = 0;
+        let currentCDC = 0;
+        let currentServices = 0;
+
+        dailyLines.forEach(line => {
+          const normalized = line.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          const nums = extractNumbers(line);
+          
+          // Check if line contains a date/day (e.g., "01/03", "Dia 01", "1")
+          // We look for a line that starts with a number or "Dia X" and doesn't have much else
+          const dateMatch = line.match(/^(?:dia\s+)?(\d{1,2})(?:\/\d{1,2})?$/i);
+          if (dateMatch) {
+            if (currentDay !== null) {
+              dailyGoals.push({ day: currentDay, mercantil: currentMercantil, cdc: currentCDC, services: currentServices });
+            }
+            currentDay = parseInt(dateMatch[1]);
+            currentMercantil = 0;
+            currentCDC = 0;
+            currentServices = 0;
+            return;
+          }
+
+          if (nums.length > 0) {
+            if (normalized.includes('mercantil')) currentMercantil = nums[0];
+            else if (normalized.includes('cdc')) currentCDC = nums[0];
+            else if (normalized.includes('servico')) currentServices = nums[0];
+          }
+        });
+
+        if (currentDay !== null) {
+          dailyGoals.push({ day: currentDay, mercantil: currentMercantil, cdc: currentCDC, services: currentServices });
+        }
+        
+        if (dailyGoals.length > 0) {
+          newData.dailyGoals = dailyGoals;
+        }
+      }
+
       onImport(newData);
       setStatus('success');
       setTimeout(() => setStatus('idle'), 3000);
@@ -223,6 +269,7 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
         <ul className="text-[8px] text-zinc-500 space-y-1 uppercase font-bold">
           <li>• Use blocos: [LOJA_INICIO] ... [LOJA_FIM]</li>
           <li>• Use blocos: [VENDEDORES_INICIO] ... [VENDEDORES_FIM]</li>
+          <li>• Use blocos: [METAS_DIARIAS_INICIO] ... [METAS_DIARIAS_FIM]</li>
           <li>• Palavras-chave: Mercantil, CDC, Serviços, Cartões, Combos.</li>
           <li>• Vendedores: Nome seguido dos valores em sequência.</li>
         </ul>

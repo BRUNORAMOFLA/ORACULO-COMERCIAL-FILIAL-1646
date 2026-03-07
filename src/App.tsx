@@ -133,6 +133,7 @@ const INITIAL_STATE: OracleData = {
   },
   simulator: { scenario: '', newHealthIndex: 0, newClassification: '' },
   history: [],
+  dailyGoals: [],
   generatedAt: new Date().toISOString()
 };
 
