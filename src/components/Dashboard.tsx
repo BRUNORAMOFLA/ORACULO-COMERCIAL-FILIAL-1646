@@ -244,7 +244,8 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
       const icmServ = calculateICM(s.services.real, s.services.meta);
       
       const score = calculateHealthIndex(icmMerc, icmCdc, icmServ);
-      const originalSeller = filteredSellers.find(fs => fs.name === s.name)!;
+      const originalSeller = filteredSellers.find(fs => fs.name === s.name);
+      if (!originalSeller) return null;
 
       // Classificação Estratégica em Duas Camadas
       const icmList = [icmMerc, icmCdc, icmServ];
@@ -295,7 +296,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         strategicStatus,
         profile: classifySellerProfile(score, calculateBalanceIndex([icmMerc, icmCdc, icmServ]), [icmMerc, icmCdc, icmServ])
       };
-    });
+    }).filter(Boolean) as Seller[];
   }, [periodContext, filteredSellers]);
 
   const seasonalData = useMemo(() => {
@@ -347,7 +348,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
     return 'text-red-600';
   };
 
-  const periodKey = seasonalData.store.period.label.replace(/\s+/g, '_');
+  const periodKey = (seasonalData.store.period.label || 'periodo').replace(/\s+/g, '_');
   const mvpPhoto = usePhotoStorage(`mvp_photo_${periodKey}`);
   const [activePhotoMenu, setActivePhotoMenu] = useState<'mvp' | null>(null);
 
@@ -368,7 +369,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
   const tripleCrownSellers = seasonalSellers.filter(s => s.isTripleCrown);
   const mvpSeller = seasonalSellers.find(s => s.id === seasonalData.mvpId);
 
-  const filename = `Oraculo_Comercial_${seasonalData.store.name}_${seasonalData.store.period.label.replace(/\//g, '-')}`;
+  const filename = `Oraculo_Comercial_${seasonalData.store.name}_${(seasonalData.store.period.label || 'periodo').replace(/\//g, '-')}`;
 
   const getHorizonLabel = (type: PeriodType) => {
     switch (type) {

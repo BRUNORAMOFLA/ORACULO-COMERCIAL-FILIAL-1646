@@ -91,6 +91,7 @@ export interface Seller {
   };
   score: number;
   classification: string;
+  strategicStatus?: string;
   profile?: string;
   balanceIndex?: number;
   isTripleCrown: boolean;
