@@ -40,15 +40,18 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   result.generatedAt = new Date().toISOString();
 
   // 1. Calculate Store Pillars
-  store.pillars.mercantil.icm = calculateICM(store.pillars.mercantil.realized, store.pillars.mercantil.meta);
-  store.pillars.mercantil.gap = calculateGap(store.pillars.mercantil.meta, store.pillars.mercantil.realized);
+  const storeMetaMerc = store.pillars.mercantil.metaMensal || store.pillars.mercantil.meta;
+  store.pillars.mercantil.icm = calculateICM(store.pillars.mercantil.realized, storeMetaMerc);
+  store.pillars.mercantil.gap = calculateGap(storeMetaMerc, store.pillars.mercantil.realized);
 
-  store.pillars.cdc.icm = calculateICM(store.pillars.cdc.realized, store.pillars.cdc.meta);
-  store.pillars.cdc.gap = calculateGap(store.pillars.cdc.meta, store.pillars.cdc.realized);
+  const storeMetaCdc = store.pillars.cdc.metaMensal || store.pillars.cdc.meta;
+  store.pillars.cdc.icm = calculateICM(store.pillars.cdc.realized, storeMetaCdc);
+  store.pillars.cdc.gap = calculateGap(storeMetaCdc, store.pillars.cdc.realized);
   store.pillars.cdc.participation.achievement = calculateICM(store.pillars.cdc.participation.realized, store.pillars.cdc.participation.meta);
 
-  store.pillars.services.icm = calculateICM(store.pillars.services.realized, store.pillars.services.meta);
-  store.pillars.services.gap = calculateGap(store.pillars.services.meta, store.pillars.services.realized);
+  const storeMetaServ = store.pillars.services.metaMensal || store.pillars.services.meta;
+  store.pillars.services.icm = calculateICM(store.pillars.services.realized, storeMetaServ);
+  store.pillars.services.gap = calculateGap(storeMetaServ, store.pillars.services.realized);
   store.pillars.services.efficiency.achievement = calculateICM(store.pillars.services.efficiency.realized, store.pillars.services.efficiency.meta);
 
   // Operational Store
@@ -300,17 +303,21 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
       const cdcSim = calculateWeighted('cdc');
       const servicesSim = calculateWeighted('services');
 
-      const mercantilICM = calculateICM(mercantilSim, store.pillars.mercantil.meta);
-      const cdcICM = calculateICM(cdcSim, store.pillars.cdc.meta);
-      const servicesICM = calculateICM(servicesSim, store.pillars.services.meta);
+      const storeMetaMercSim = store.pillars.mercantil.metaMensal || store.pillars.mercantil.meta;
+      const storeMetaCdcSim = store.pillars.cdc.metaMensal || store.pillars.cdc.meta;
+      const storeMetaServSim = store.pillars.services.metaMensal || store.pillars.services.meta;
+
+      const mercantilICM = calculateICM(mercantilSim, storeMetaMercSim);
+      const cdcICM = calculateICM(cdcSim, storeMetaCdcSim);
+      const servicesICM = calculateICM(servicesSim, storeMetaServSim);
 
       const projectedScore = calculateHealthIndex(mercantilICM, cdcICM, servicesICM);
 
       result.trendSimulation = {
         isAvailable: true,
-        mercantil: { projected: mercantilSim, gap: calculateGap(store.pillars.mercantil.meta, mercantilSim), icm: mercantilICM },
-        cdc: { projected: cdcSim, gap: calculateGap(store.pillars.cdc.meta, cdcSim), icm: cdcICM },
-        services: { projected: servicesSim, gap: calculateGap(store.pillars.services.meta, servicesSim), icm: servicesICM },
+        mercantil: { projected: mercantilSim, gap: calculateGap(storeMetaMercSim, mercantilSim), icm: mercantilICM },
+        cdc: { projected: cdcSim, gap: calculateGap(storeMetaCdcSim, cdcSim), icm: cdcICM },
+        services: { projected: servicesSim, gap: calculateGap(storeMetaServSim, servicesSim), icm: servicesICM },
         projectedScore,
         projectedClassification: classifyHealth(projectedScore)
       };
@@ -324,7 +331,8 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
     
     const impacts = (['mercantil', 'cdc', 'services'] as const).map(p => {
       const simulatedRealized = store.pillars[p].realized * 1.1;
-      const simulatedICM = calculateICM(simulatedRealized, store.pillars[p].meta);
+      const pillarMeta = store.pillars[p].metaMensal || store.pillars[p].meta;
+      const simulatedICM = calculateICM(simulatedRealized, pillarMeta);
       
       const icms = {
         mercantil: store.pillars.mercantil.icm,

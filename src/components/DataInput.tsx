@@ -47,9 +47,9 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
       id: crypto.randomUUID(),
       name: '',
       pillars: {
-        mercantil: { meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0 },
-        cdc: { meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0 },
-        services: { meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0 },
+        mercantil: { meta: 0, realized: 0, icm: 0, gap: 0 },
+        cdc: { meta: 0, realized: 0, icm: 0, gap: 0 },
+        services: { meta: 0, realized: 0, icm: 0, gap: 0 },
       },
       operational: {
         cards: { meta: 0, realized: 0 },
@@ -380,12 +380,12 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
                       <NumberInput 
-                        label="Meta"
+                        label="Meta Parcial"
                         value={s.pillars[p].meta}
                         onChange={val => updateSeller(s.id, `pillars.${p}.meta`, val)}
                       />
                       <NumberInput 
-                        label="Real"
+                        label="Realizado"
                         value={s.pillars[p].realized}
                         onChange={val => updateSeller(s.id, `pillars.${p}.realized`, val)}
                       />

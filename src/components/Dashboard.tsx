@@ -100,19 +100,19 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
     // Initial fallback data (from the current report)
     let storeData = {
       mercantil: { 
-        meta: data.store.pillars.mercantil.meta, 
+        meta: data.store.pillars.mercantil.metaEsperada || data.store.pillars.mercantil.meta, 
         real: data.store.pillars.mercantil.realized,
         metaMensal: data.store.pillars.mercantil.metaMensal,
         metaEsperada: data.store.pillars.mercantil.metaEsperada
       },
       cdc: { 
-        meta: data.store.pillars.cdc.meta, 
+        meta: data.store.pillars.cdc.metaEsperada || data.store.pillars.cdc.meta, 
         real: data.store.pillars.cdc.realized,
         metaMensal: data.store.pillars.cdc.metaMensal,
         metaEsperada: data.store.pillars.cdc.metaEsperada
       },
       services: { 
-        meta: data.store.pillars.services.meta, 
+        meta: data.store.pillars.services.metaEsperada || data.store.pillars.services.meta, 
         real: data.store.pillars.services.realized,
         metaMensal: data.store.pillars.services.metaMensal,
         metaEsperada: data.store.pillars.services.metaEsperada
@@ -179,19 +179,19 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         // 2. Calculate Store Data (Sum of Daily Metas, and Realized from Sellers Sum for consistency)
         storeData = {
           mercantil: {
-            meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
+            meta: data.store.pillars.mercantil.metaEsperada || periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
             real: sellersData.reduce((acc, s) => acc + s.mercantil.real, 0),
             metaMensal: data.store.pillars.mercantil.metaMensal,
             metaEsperada: data.store.pillars.mercantil.metaEsperada
           },
           cdc: {
-            meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
+            meta: data.store.pillars.cdc.metaEsperada || periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
             real: sellersData.reduce((acc, s) => acc + s.cdc.real, 0),
             metaMensal: data.store.pillars.cdc.metaMensal,
             metaEsperada: data.store.pillars.cdc.metaEsperada
           },
           services: {
-            meta: periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
+            meta: data.store.pillars.services.metaEsperada || periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
             real: sellersData.reduce((acc, s) => acc + s.services.real, 0),
             metaMensal: data.store.pillars.services.metaMensal,
             metaEsperada: data.store.pillars.services.metaEsperada

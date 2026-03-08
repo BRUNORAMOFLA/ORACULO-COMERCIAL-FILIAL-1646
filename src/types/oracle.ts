@@ -72,8 +72,6 @@ export interface Store {
 
 export interface SellerPillar {
   meta: number;
-  metaMensal?: number;
-  metaEsperada?: number;
   realized: number;
   icm: number;
   gap: number;

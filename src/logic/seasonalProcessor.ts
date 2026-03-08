@@ -19,9 +19,18 @@ export function getSeasonalData(data: OracleData, fullHistory: OracleHistoryV1):
 
   // Initial fallback data (from the current report)
   let storeData = {
-    mercantil: { meta: data.store.pillars.mercantil.meta, real: data.store.pillars.mercantil.realized },
-    cdc: { meta: data.store.pillars.cdc.meta, real: data.store.pillars.cdc.realized },
-    services: { meta: data.store.pillars.services.meta, real: data.store.pillars.services.realized }
+    mercantil: { 
+      meta: data.store.pillars.mercantil.metaEsperada || (mode === 'monthly' ? (data.store.pillars.mercantil.metaMensal || data.store.pillars.mercantil.meta) : data.store.pillars.mercantil.meta), 
+      real: data.store.pillars.mercantil.realized 
+    },
+    cdc: { 
+      meta: data.store.pillars.cdc.metaEsperada || (mode === 'monthly' ? (data.store.pillars.cdc.metaMensal || data.store.pillars.cdc.meta) : data.store.pillars.cdc.meta), 
+      real: data.store.pillars.cdc.realized 
+    },
+    services: { 
+      meta: data.store.pillars.services.metaEsperada || (mode === 'monthly' ? (data.store.pillars.services.metaMensal || data.store.pillars.services.meta) : data.store.pillars.services.meta), 
+      real: data.store.pillars.services.realized 
+    }
   };
 
   let sellersData = data.sellers.map(s => ({
@@ -84,15 +93,15 @@ export function getSeasonalData(data: OracleData, fullHistory: OracleHistoryV1):
       // 2. Calculate Store Data
       storeData = {
         mercantil: {
-          meta: mode === 'monthly' ? (data.store.pillars.mercantil.metaMensal || data.store.pillars.mercantil.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
+          meta: data.store.pillars.mercantil.metaEsperada || (mode === 'monthly' ? (data.store.pillars.mercantil.metaMensal || data.store.pillars.mercantil.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0)),
           real: sellersData.reduce((acc, s) => acc + s.mercantil.real, 0)
         },
         cdc: {
-          meta: mode === 'monthly' ? (data.store.pillars.cdc.metaMensal || data.store.pillars.cdc.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
+          meta: data.store.pillars.cdc.metaEsperada || (mode === 'monthly' ? (data.store.pillars.cdc.metaMensal || data.store.pillars.cdc.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0)),
           real: sellersData.reduce((acc, s) => acc + s.cdc.real, 0)
         },
         services: {
-          meta: mode === 'monthly' ? (data.store.pillars.services.metaMensal || data.store.pillars.services.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
+          meta: data.store.pillars.services.metaEsperada || (mode === 'monthly' ? (data.store.pillars.services.metaMensal || data.store.pillars.services.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0)),
           real: sellersData.reduce((acc, s) => acc + s.services.real, 0)
         }
       };

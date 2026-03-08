@@ -133,6 +133,7 @@ const INITIAL_STATE: OracleData = {
   },
   simulator: { scenario: '', newHealthIndex: 0, newClassification: '' },
   history: [],
+  dailyGoals: [],
   generatedAt: new Date().toISOString()
 };
 
@@ -173,7 +174,7 @@ export default function App() {
   }, [history, periodMode]);
 
   const processedData = useMemo(() => {
-    const baseData = processOracle(data, currentHistory);
+    const baseData = processOracle(data, currentHistory, history.diario);
     return getSeasonalData(baseData, history);
   }, [data, currentHistory, history]);
 

@@ -67,16 +67,13 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
             if (nums.length >= 2) {
               newData.store.pillars[targetPillar].meta = nums[0];
               newData.store.pillars[targetPillar].realized = nums[1];
-              if (newData.store.period.type === 'monthly') {
-                newData.store.pillars[targetPillar].metaMensal = nums[0];
-              }
+              newData.store.pillars[targetPillar].metaEsperada = nums[0];
             } else if (nums.length === 1) {
-              if (isReal && !isMeta) newData.store.pillars[targetPillar].realized = nums[0];
-              else {
+              if (isReal && !isMeta) {
+                newData.store.pillars[targetPillar].realized = nums[0];
+              } else {
                 newData.store.pillars[targetPillar].meta = nums[0];
-                if (newData.store.period.type === 'monthly') {
-                  newData.store.pillars[targetPillar].metaMensal = nums[0];
-                }
+                newData.store.pillars[targetPillar].metaEsperada = nums[0];
               }
             }
           } else {
@@ -154,9 +151,9 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
     id: crypto.randomUUID(),
     name: name,
     pillars: {
-      mercantil: { meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0 },
-      cdc: { meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0 },
-      services: { meta: 0, metaMensal: 0, realized: 0, icm: 0, gap: 0 },
+      mercantil: { meta: 0, realized: 0, icm: 0, gap: 0 },
+      cdc: { meta: 0, realized: 0, icm: 0, gap: 0 },
+      services: { meta: 0, realized: 0, icm: 0, gap: 0 },
     },
     operational: {
       cards: { meta: 0, realized: 0 },
