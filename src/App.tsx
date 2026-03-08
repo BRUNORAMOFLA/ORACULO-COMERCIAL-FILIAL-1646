@@ -14,9 +14,9 @@ import { LayoutDashboard, FileInput, Info, Save, Clock, RotateCcw, History, Chec
 import { formatDateTimeBR, getISOWeek, generatePeriodLabel } from './utils/formatters';
 import { SwitchPeriodModal } from './components/SwitchPeriodModal';
 
-const STORAGE_KEY = 'oraculo-comercial-storage';
-const HISTORY_KEY = 'oraculo-comercial-historico';
+const STORAGE_KEY = 'oraculo_mes_atual';
 const HISTORY_V1_KEY = 'oracle_history:v1';
+const HISTORY_KEY = 'oraculo-comercial-historico'; // Keep for migration
 
 const parseDateSafe = (dateStr: string) => {
   if (!dateStr) return new Date();
@@ -165,10 +165,11 @@ function AppContent() {
     }
   });
 
-  const handleReset = () => {
+  const resetData = () => {
     if (window.confirm("Isso apagará todos os dados atuais e o histórico. Deseja continuar?")) {
       localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem('oracle_history_v1');
+      localStorage.removeItem(HISTORY_V1_KEY);
+      localStorage.removeItem(HISTORY_KEY);
       window.location.reload();
     }
   };
@@ -256,6 +257,8 @@ function AppContent() {
   const handleDataChange = (newData: OracleData) => {
     setData(newData);
     setIsDirty(true);
+    // Immediate persistence as requested
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
   };
 
   const handleSave = (silent = false) => {
@@ -288,9 +291,14 @@ function AppContent() {
         newRegistros.unshift(newRecord);
       }
 
-      setHistory(prev => ({ ...prev, [modeKey]: newRegistros }));
+      const newHistory = { ...history, [modeKey]: newRegistros };
+      setHistory(newHistory);
       setData(newRecord.dados);
       setIsDirty(false);
+      
+      // Persist both immediately
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newRecord.dados));
+      localStorage.setItem(HISTORY_V1_KEY, JSON.stringify(newHistory));
       
       if (!silent) {
         setActiveTab('dashboard');
@@ -321,13 +329,16 @@ function AppContent() {
     const existingRecord = history[modeKey].find(r => r.id === newRecordId);
 
     if (existingRecord) {
-      setData(JSON.parse(JSON.stringify(existingRecord.dados)));
+      const loadedData = JSON.parse(JSON.stringify(existingRecord.dados));
+      setData(loadedData);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedData));
     } else {
       // Start fresh for this period, but keep store name
       const freshData = JSON.parse(JSON.stringify(INITIAL_STATE));
       freshData.store.name = data.store.name;
       freshData.store.period = newPeriod;
       setData(freshData);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(freshData));
     }
     
     setIsDirty(false);
@@ -339,9 +350,13 @@ function AppContent() {
     const record = history[modeKey].find(r => r.id === recordId);
     if (record) {
       setPeriodMode(mode);
-      setData(JSON.parse(JSON.stringify(record.dados)));
+      const loadedData = JSON.parse(JSON.stringify(record.dados));
+      setData(loadedData);
       setIsDirty(false);
       setActiveTab('dashboard');
+      
+      // Ensure the loaded data becomes the current persisted state
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedData));
     }
   };
 
@@ -355,13 +370,6 @@ function AppContent() {
     }
   };
 
-  const resetData = () => {
-    if (window.confirm("Tem certeza que deseja apagar todos os dados? Essa ação não pode ser desfeita.")) {
-      localStorage.removeItem("oraculo-comercial-storage");
-      localStorage.removeItem("oraculo-comercial-historico");
-      window.location.reload();
-    }
-  };
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -558,7 +566,7 @@ function AppContent() {
             <span className="text-primary">© 2026 ORÁCULO COMERCIAL</span>
             <span className="flex items-center gap-1"><Clock size={10} className="text-accent" /> GERADO EM: {formatDateTimeBR(processedData.generatedAt)}</span>
             <button 
-              onClick={handleReset}
+              onClick={resetData}
               className="ml-0 sm:ml-4 text-accent hover:text-accent/80 transition-colors border-b border-accent/20"
             >
               Limpar Todos os Dados
