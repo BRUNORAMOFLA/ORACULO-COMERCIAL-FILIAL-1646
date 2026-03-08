@@ -40,18 +40,25 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   result.generatedAt = new Date().toISOString();
 
   // 1. Calculate Store Pillars
-  const storeMetaMerc = store.pillars.mercantil.metaMensal || store.pillars.mercantil.meta;
-  store.pillars.mercantil.icm = calculateICM(store.pillars.mercantil.realized, storeMetaMerc);
-  store.pillars.mercantil.gap = calculateGap(storeMetaMerc, store.pillars.mercantil.realized);
+  const daysTotal = store.period.businessDaysTotal || 1;
+  const daysElapsed = store.period.businessDaysElapsed || 0;
 
-  const storeMetaCdc = store.pillars.cdc.metaMensal || store.pillars.cdc.meta;
-  store.pillars.cdc.icm = calculateICM(store.pillars.cdc.realized, storeMetaCdc);
-  store.pillars.cdc.gap = calculateGap(storeMetaCdc, store.pillars.cdc.realized);
+  (['mercantil', 'cdc', 'services'] as const).forEach(p => {
+    const pillar = store.pillars[p];
+    const monthlyGoal = pillar.metaMensal || (store.period.type === 'monthly' ? pillar.meta : 0);
+    
+    if (monthlyGoal > 0) {
+      pillar.metaEsperada = (monthlyGoal / daysTotal) * daysElapsed;
+    } else {
+      pillar.metaEsperada = 0;
+    }
+
+    const storeMeta = pillar.metaMensal || pillar.meta;
+    pillar.icm = calculateICM(pillar.realized, storeMeta);
+    pillar.gap = calculateGap(storeMeta, pillar.realized);
+  });
+
   store.pillars.cdc.participation.achievement = calculateICM(store.pillars.cdc.participation.realized, store.pillars.cdc.participation.meta);
-
-  const storeMetaServ = store.pillars.services.metaMensal || store.pillars.services.meta;
-  store.pillars.services.icm = calculateICM(store.pillars.services.realized, storeMetaServ);
-  store.pillars.services.gap = calculateGap(storeMetaServ, store.pillars.services.realized);
   store.pillars.services.efficiency.achievement = calculateICM(store.pillars.services.efficiency.realized, store.pillars.services.efficiency.meta);
 
   // Operational Store

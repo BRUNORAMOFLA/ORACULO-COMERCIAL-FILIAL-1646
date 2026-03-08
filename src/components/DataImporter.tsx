@@ -65,10 +65,21 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
 
           if (targetPillar) {
             if (nums.length >= 2) {
+              newData.store.pillars[targetPillar].meta = nums[0];
               newData.store.pillars[targetPillar].realized = nums[1];
+              
+              // If we are in daily mode, the "Meta" in the bulletin is usually the monthly goal
+              if (newData.store.period.type === 'daily') {
+                newData.store.pillars[targetPillar].metaMensal = nums[0];
+              }
             } else if (nums.length === 1) {
               if (isReal && !isMeta) {
                 newData.store.pillars[targetPillar].realized = nums[0];
+              } else {
+                newData.store.pillars[targetPillar].meta = nums[0];
+                if (newData.store.period.type === 'daily') {
+                  newData.store.pillars[targetPillar].metaMensal = nums[0];
+                }
               }
             }
           } else {

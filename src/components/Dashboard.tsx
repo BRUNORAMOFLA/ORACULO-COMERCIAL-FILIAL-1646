@@ -592,6 +592,12 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
                     <span className="text-[10px] font-bold text-zinc-400 uppercase block">Realizado</span>
                     <span className="text-lg font-black text-zinc-900">{formatCurrencyBR(seasonalData.store.pillars[p].realized)}</span>
                   </div>
+                  {seasonalData.store.pillars[p].metaEsperada > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase block">Meta Esperada</span>
+                      <span className="text-sm font-black text-primary">{formatCurrencyBR(seasonalData.store.pillars[p].metaEsperada)}</span>
+                    </div>
+                  )}
                   <div className="pt-4 border-t border-zinc-200">
                     <span className="text-[10px] font-bold text-zinc-400 uppercase block mb-1">Média Necessária</span>
                     <span className="text-sm font-black text-accent">{formatCurrencyBR(neededDaily)} / DIA</span>
