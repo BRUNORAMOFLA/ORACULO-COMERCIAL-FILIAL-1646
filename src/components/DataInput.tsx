@@ -227,7 +227,7 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
               <div className="grid grid-cols-2 gap-3">
                 <NumberInput 
                   label="Meta Mensal (R$)"
-                  value={data.store.pillars[p].metaMensal || data.store.pillars[p].meta}
+                  value={data.store.pillars[p].metaMensal || 0}
                   onChange={val => updateStorePillar(p, 'metaMensal', val)}
                 />
                 <NumberInput 

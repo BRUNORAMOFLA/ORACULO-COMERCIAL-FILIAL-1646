@@ -118,7 +118,9 @@ export function getSeasonalData(data: OracleData, fullHistory: OracleHistoryV1):
     const sIcmCdc = calculateICM(s.cdc.real, s.cdc.meta);
     const sIcmServ = calculateICM(s.services.real, s.services.meta);
     const sScore = calculateHealthIndex(sIcmMerc, sIcmCdc, sIcmServ);
-    const originalSeller = data.sellers.find(fs => fs.name === s.name)!;
+    const originalSeller = data.sellers.find(fs => fs.name === s.name);
+    
+    if (!originalSeller) return null;
 
     const icms = [sIcmMerc, sIcmCdc, sIcmServ];
     const balance = calculateBalanceIndex(icms);
@@ -135,7 +137,7 @@ export function getSeasonalData(data: OracleData, fullHistory: OracleHistoryV1):
       profile: classifySellerProfile(sScore, balance, icms),
       isTripleCrown: sIcmMerc >= 100 && sIcmCdc >= 100 && sIcmServ >= 100
     };
-  });
+  }).filter(Boolean) as any[];
 
   const sortedSeasonal = [...seasonalSellers].sort((a, b) => b.score - a.score);
   const mvp = sortedSeasonal[0];

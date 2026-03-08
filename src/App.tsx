@@ -133,15 +133,45 @@ const INITIAL_STATE: OracleData = {
   },
   simulator: { scenario: '', newHealthIndex: 0, newClassification: '' },
   history: [],
-  dailyGoals: [],
   generatedAt: new Date().toISOString()
 };
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
+}
+
+function AppContent() {
   const [data, setData] = useState<OracleData>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : INITIAL_STATE;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return INITIAL_STATE;
+      
+      const parsed = JSON.parse(saved);
+      // Validação básica de integridade
+      if (!parsed.store || !parsed.sellers || !Array.isArray(parsed.sellers)) {
+        console.warn("Dados corrompidos detectados, resetando para o estado inicial.");
+        return INITIAL_STATE;
+      }
+      return parsed;
+    } catch (e) {
+      console.error("Erro ao carregar dados do localStorage:", e);
+      return INITIAL_STATE;
+    }
   });
+
+  const handleReset = () => {
+    if (window.confirm("Isso apagará todos os dados atuais e o histórico. Deseja continuar?")) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem('oracle_history_v1');
+      window.location.reload();
+    }
+  };
   
   const [activeTab, setActiveTab] = useState<'input' | 'dashboard' | 'evolution'>('input');
   const [periodMode, setPeriodMode] = useState<'DIARIO' | 'SEMANAL' | 'MENSAL'>('DIARIO');
@@ -174,8 +204,13 @@ export default function App() {
   }, [history, periodMode]);
 
   const processedData = useMemo(() => {
-    const baseData = processOracle(data, currentHistory, history.diario);
-    return getSeasonalData(baseData, history);
+    try {
+      const baseData = processOracle(data, currentHistory);
+      return getSeasonalData(baseData, history);
+    } catch (e) {
+      console.error("Erro ao processar dados:", e);
+      return { ...data, store: { ...data.store, healthIndex: 0, classification: 'Erro no Processamento' } } as any;
+    }
   }, [data, currentHistory, history]);
 
   useEffect(() => {
@@ -522,6 +557,12 @@ export default function App() {
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
             <span className="text-primary">© 2026 ORÁCULO COMERCIAL</span>
             <span className="flex items-center gap-1"><Clock size={10} className="text-accent" /> GERADO EM: {formatDateTimeBR(processedData.generatedAt)}</span>
+            <button 
+              onClick={handleReset}
+              className="ml-0 sm:ml-4 text-accent hover:text-accent/80 transition-colors border-b border-accent/20"
+            >
+              Limpar Todos os Dados
+            </button>
           </div>
           <div className="flex flex-wrap gap-4 sm:gap-6 items-center justify-center sm:justify-end">
             <button 

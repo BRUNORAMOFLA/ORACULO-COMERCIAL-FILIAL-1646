@@ -65,15 +65,10 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
 
           if (targetPillar) {
             if (nums.length >= 2) {
-              newData.store.pillars[targetPillar].meta = nums[0];
               newData.store.pillars[targetPillar].realized = nums[1];
-              newData.store.pillars[targetPillar].metaEsperada = nums[0];
             } else if (nums.length === 1) {
               if (isReal && !isMeta) {
                 newData.store.pillars[targetPillar].realized = nums[0];
-              } else {
-                newData.store.pillars[targetPillar].meta = nums[0];
-                newData.store.pillars[targetPillar].metaEsperada = nums[0];
               }
             }
           } else {
@@ -135,6 +130,11 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
 
         if (currentSeller) applyNumbersToSeller(currentSeller, sellerNumbers);
         if (sellers.length > 0) newData.sellers = sellers;
+      }
+
+      // Final validation
+      if (!newData.store || !newData.sellers) {
+        throw new Error("Dados extraídos incompletos");
       }
 
       onImport(newData);

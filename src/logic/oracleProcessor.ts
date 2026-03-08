@@ -106,9 +106,9 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   const last3Records = history.slice(0, 3).reverse(); // Oldest to newest
   
   // Store Trends
-  const storeMercantilHistory = [...last3Records.map(r => r.dados.store.pillars.mercantil.icm), store.pillars.mercantil.icm];
-  const storeCDCHistory = [...last3Records.map(r => r.dados.store.pillars.cdc.icm), store.pillars.cdc.icm];
-  const storeServicesHistory = [...last3Records.map(r => r.dados.store.pillars.services.icm), store.pillars.services.icm];
+  const storeMercantilHistory = [...last3Records.map(r => r.dados?.store?.pillars?.mercantil?.icm || 0), store.pillars.mercantil.icm];
+  const storeCDCHistory = [...last3Records.map(r => r.dados?.store?.pillars?.cdc?.icm || 0), store.pillars.cdc.icm];
+  const storeServicesHistory = [...last3Records.map(r => r.dados?.store?.pillars?.services?.icm || 0), store.pillars.services.icm];
 
   const storeTrend: TrendAnalysis = {
     mercantil: analyzeTrend(storeMercantilHistory.slice(-3)),
@@ -118,11 +118,11 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
 
   // Seller Intelligence
   sellers.forEach(seller => {
-    const sellerHistory = last3Records.map(r => r.dados.sellers.find(s => s.name === seller.name)).filter(Boolean);
-    const sellerScores = [...sellerHistory.map(s => s!.score), seller.score];
+    const sellerHistory = last3Records.map(r => r.dados?.sellers?.find(s => s.name === seller.name)).filter(Boolean);
+    const sellerScores = [...sellerHistory.map(s => s?.score || 0), seller.score];
     
     const consistencyCount = sellerScores.filter(s => s >= 100).length;
-    const consistency = (consistencyCount / sellerScores.length) * 100;
+    const consistency = sellerScores.length > 0 ? (consistencyCount / sellerScores.length) * 100 : 0;
     
     let consistencyReading = "";
     if (consistency >= 70) consistencyReading = `${seller.name} apresenta alta consistência nos últimos períodos, mantendo entrega acima da meta.`;
@@ -141,9 +141,9 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
 
     seller.intelligence = {
       trend: {
-        mercantil: analyzeTrend([...sellerHistory.map(s => s!.pillars.mercantil.icm), seller.pillars.mercantil.icm].slice(-3)),
-        cdc: analyzeTrend([...sellerHistory.map(s => s!.pillars.cdc.icm), seller.pillars.cdc.icm].slice(-3)),
-        services: analyzeTrend([...sellerHistory.map(s => s!.pillars.services.icm), seller.pillars.services.icm].slice(-3))
+        mercantil: analyzeTrend([...sellerHistory.map(s => s?.pillars?.mercantil?.icm || 0), seller.pillars.mercantil.icm].slice(-3)),
+        cdc: analyzeTrend([...sellerHistory.map(s => s?.pillars?.cdc?.icm || 0), seller.pillars.cdc.icm].slice(-3)),
+        services: analyzeTrend([...sellerHistory.map(s => s?.pillars?.services?.icm || 0), seller.pillars.services.icm].slice(-3))
       },
       consistency,
       consistencyReading,

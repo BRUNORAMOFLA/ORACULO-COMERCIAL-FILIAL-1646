@@ -79,6 +79,14 @@ interface Props {
 }
 
 export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
+  if (!data || !data.store || !data.store.pillars) {
+    return (
+      <div className="p-12 text-center bg-zinc-50 rounded-3xl border border-dashed border-zinc-200">
+        <p className="text-sm text-zinc-500 font-bold uppercase">Aguardando dados para processamento...</p>
+      </div>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState<'crown' | 'mvp'>('crown');
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -595,7 +603,7 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         </div>
 
         {/* PROBABILIDADE DE FECHAMENTO DA META */}
-        <ProbabilityBlock context={periodContext} />
+        <ProbabilityBlock context={periodContext} history={history} />
 
         {/* 7. PROJEÇÃO DO MÊS */}
         <div className="bg-primary text-white p-8 rounded-[2.5rem] shadow-xl shadow-primary/20 relative overflow-hidden">
