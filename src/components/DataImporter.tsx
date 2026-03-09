@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { OracleData, Seller } from '../types/oracle';
 import { FileText, Download, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { parseBRNumber } from '../utils/formatters';
 
 interface Props {
   onImport: (newData: OracleData) => void;
@@ -12,15 +13,6 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
   const [text, setText] = useState('');
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
-  const parseNumber = (val: string): number => {
-    if (!val) return 0;
-    // Remove currency symbols, spaces, and dots (thousands)
-    // Replace comma with dot (decimal)
-    const clean = val.replace(/[R$\s.]/g, '').replace(',', '.');
-    const num = parseFloat(clean);
-    return isNaN(num) ? 0 : num;
-  };
-
   const handleImport = () => {
     if (!text.trim()) return;
 
@@ -30,10 +22,13 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
       // Reset store values to 0 before parsing to ensure missing data is 0
       newData.store.pillars.mercantil.meta = 0;
       newData.store.pillars.mercantil.realized = 0;
+      newData.store.pillars.mercantil.metaEsperada = 0;
       newData.store.pillars.cdc.meta = 0;
       newData.store.pillars.cdc.realized = 0;
+      newData.store.pillars.cdc.metaEsperada = 0;
       newData.store.pillars.services.meta = 0;
       newData.store.pillars.services.realized = 0;
+      newData.store.pillars.services.metaEsperada = 0;
       newData.store.pillars.operational.cards.meta = 0;
       newData.store.pillars.operational.cards.realized = 0;
       newData.store.pillars.operational.combos.meta = 0;
@@ -42,7 +37,7 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
       // Improved number extraction: captures numbers with dots and commas
       const extractNumbers = (str: string): number[] => {
         const matches = str.match(/[0-9]+(?:[.,][0-9]+)*/g) || [];
-        return matches.map(m => parseNumber(m));
+        return matches.map(m => parseBRNumber(m));
       };
 
       // 1. Process Store Block (Explicit Delimiters)
@@ -58,13 +53,19 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
 
           const isMeta = normalized.includes('meta');
           const isReal = normalized.includes('real') || normalized.includes('atingido') || normalized.includes('realizado');
+          const isSazonal = normalized.includes('sazonal') || normalized.includes('esperada') || normalized.includes('acumulado');
 
           const targetPillar = normalized.includes('mercantil') ? 'mercantil' :
                              normalized.includes('cdc') ? 'cdc' :
                              normalized.includes('servico') ? 'services' : null;
 
           if (targetPillar) {
-            if (nums.length >= 2) {
+            if (isSazonal) {
+              newData.store.pillars[targetPillar].metaEsperada = nums[0];
+              if (nums.length >= 2) {
+                newData.store.pillars[targetPillar].realized = nums[1];
+              }
+            } else if (nums.length >= 2) {
               newData.store.pillars[targetPillar].meta = nums[0];
               newData.store.pillars[targetPillar].realized = nums[1];
               

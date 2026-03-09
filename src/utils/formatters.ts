@@ -1,5 +1,22 @@
 
 /**
+ * Sanitizes a Brazilian formatted number string and converts it to a Number.
+ * Removes dots (thousands separator) and replaces comma with dot (decimal separator).
+ */
+export function parseBRNumber(value: string | number): number {
+  if (value === undefined || value === null) return 0;
+  if (typeof value === 'number') return value;
+  
+  const clean = String(value)
+    .replace(/[R$\s]/g, '') // Remove currency and spaces
+    .replace(/\./g, '')      // Remove all dots (thousand separators)
+    .replace(',', '.');      // Replace comma with dot (decimal separator)
+    
+  const num = Number(clean);
+  return isNaN(num) ? 0 : num;
+}
+
+/**
  * Formats a number to Brazilian standard (dot as thousands separator)
  */
 export function formatNumberBR(value: number): string {

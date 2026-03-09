@@ -9,7 +9,7 @@ import {
   calculateBalanceIndex,
   classifySellerProfile
 } from '../calculations/formulas';
-import { generatePeriodLabel } from '../utils/formatters';
+import { generatePeriodLabel, parseBRNumber } from '../utils/formatters';
 
 function analyzeTrend(values: number[]): string {
   if (values.length < 2) return "Dados insuficientes";
@@ -40,28 +40,38 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
   result.generatedAt = new Date().toISOString();
 
   // 1. Calculate Store Pillars
-  const daysTotal = store.period.businessDaysTotal || 1;
-  const daysElapsed = store.period.businessDaysElapsed || 0;
+  const daysTotal = parseBRNumber(store.period.businessDaysTotal) || 1;
+  const daysElapsed = parseBRNumber(store.period.businessDaysElapsed) || 0;
 
   (['mercantil', 'cdc', 'services'] as const).forEach(p => {
     const pillar = store.pillars[p];
-    const monthlyGoal = pillar.metaMensal || (store.period.type === 'monthly' ? pillar.meta : 0);
     
-    if (monthlyGoal > 0) {
-      pillar.metaEsperada = (monthlyGoal / daysTotal) * daysElapsed;
-    } else {
-      pillar.metaEsperada = 0;
-    }
-
+    // Sanitize values
+    pillar.meta = parseBRNumber(pillar.meta);
+    pillar.realized = parseBRNumber(pillar.realized);
+    pillar.metaMensal = pillar.metaMensal !== undefined ? parseBRNumber(pillar.metaMensal) : undefined;
+    pillar.metaEsperada = parseBRNumber(pillar.metaEsperada || 0);
+    
     const storeMeta = pillar.metaMensal || pillar.meta;
     pillar.icm = calculateICM(pillar.realized, storeMeta);
     pillar.gap = calculateGap(storeMeta, pillar.realized);
   });
 
+  // Sanitize sub-pillars
+  store.pillars.cdc.participation.meta = parseBRNumber(store.pillars.cdc.participation.meta);
+  store.pillars.cdc.participation.realized = parseBRNumber(store.pillars.cdc.participation.realized);
+  store.pillars.services.efficiency.meta = parseBRNumber(store.pillars.services.efficiency.meta);
+  store.pillars.services.efficiency.realized = parseBRNumber(store.pillars.services.efficiency.realized);
+
   store.pillars.cdc.participation.achievement = calculateICM(store.pillars.cdc.participation.realized, store.pillars.cdc.participation.meta);
   store.pillars.services.efficiency.achievement = calculateICM(store.pillars.services.efficiency.realized, store.pillars.services.efficiency.meta);
 
   // Operational Store
+  store.pillars.operational.cards.meta = parseBRNumber(store.pillars.operational.cards.meta);
+  store.pillars.operational.cards.realized = parseBRNumber(store.pillars.operational.cards.realized);
+  store.pillars.operational.combos.meta = parseBRNumber(store.pillars.operational.combos.meta);
+  store.pillars.operational.combos.realized = parseBRNumber(store.pillars.operational.combos.realized);
+
   store.pillars.operational.cards.achievement = calculateICM(store.pillars.operational.cards.realized, store.pillars.operational.cards.meta);
   store.pillars.operational.combos.achievement = calculateICM(store.pillars.operational.combos.realized, store.pillars.operational.combos.meta);
 
@@ -82,6 +92,18 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
 
   // 4. Process Sellers
   sellers.forEach(seller => {
+    // Sanitize Seller Pillars
+    (['mercantil', 'cdc', 'services'] as const).forEach(p => {
+      seller.pillars[p].meta = parseBRNumber(seller.pillars[p].meta);
+      seller.pillars[p].realized = parseBRNumber(seller.pillars[p].realized);
+    });
+    
+    // Sanitize Seller Operational
+    seller.operational.cards.meta = parseBRNumber(seller.operational.cards.meta);
+    seller.operational.cards.realized = parseBRNumber(seller.operational.cards.realized);
+    seller.operational.combos.meta = parseBRNumber(seller.operational.combos.meta);
+    seller.operational.combos.realized = parseBRNumber(seller.operational.combos.realized);
+
     // Mercantil
     seller.pillars.mercantil.icm = calculateICM(seller.pillars.mercantil.realized, seller.pillars.mercantil.meta);
     seller.pillars.mercantil.gap = calculateGap(seller.pillars.mercantil.meta, seller.pillars.mercantil.realized);
