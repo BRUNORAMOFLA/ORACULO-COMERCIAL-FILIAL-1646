@@ -40,6 +40,14 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
         return matches.map(m => parseBRNumber(m));
       };
 
+      const getNumberAfter = (line: string, keyword: string): number | null => {
+        const normalizedLine = line.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        const normalizedKeyword = keyword.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        const regex = new RegExp(`${normalizedKeyword}\\s+([0-9]+(?:[.,][0-9]+)*)`, 'i');
+        const match = normalizedLine.match(regex);
+        return match ? parseBRNumber(match[1]) : null;
+      };
+
       // 1. Process Store Block (Explicit Delimiters)
       const storeMatch = text.match(/\[LOJA_INICIO\]([\s\S]*?)\[LOJA_FIM\]/i);
       if (storeMatch) {
@@ -48,44 +56,60 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
         
         storeLines.forEach(line => {
           const normalized = line.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-          const nums = extractNumbers(line);
-          if (nums.length === 0) return;
-
-          const isMeta = normalized.includes('meta');
-          const isReal = normalized.includes('real') || normalized.includes('atingido') || normalized.includes('realizado');
-          const isSazonal = normalized.includes('sazonal') || normalized.includes('esperada') || normalized.includes('acumulado');
-
+          
           const targetPillar = normalized.includes('mercantil') ? 'mercantil' :
                              normalized.includes('cdc') ? 'cdc' :
                              normalized.includes('servico') ? 'services' : null;
 
           if (targetPillar) {
-            if (isSazonal) {
-              newData.store.pillars[targetPillar].metaEsperada = nums[0];
-              if (nums.length >= 2) {
-                newData.store.pillars[targetPillar].realized = nums[1];
-              }
-            } else if (nums.length >= 2) {
-              newData.store.pillars[targetPillar].meta = nums[0];
-              newData.store.pillars[targetPillar].realized = nums[1];
-              
-              // If we are in daily mode, the "Meta" in the bulletin is usually the monthly goal
-              if (newData.store.period.type === 'daily') {
-                newData.store.pillars[targetPillar].metaMensal = nums[0];
-              }
-            } else if (nums.length === 1) {
-              if (isReal && !isMeta) {
-                newData.store.pillars[targetPillar].realized = nums[0];
-              } else {
+            const valMetaMes = getNumberAfter(line, 'metames');
+            const valMetaEsperada = getNumberAfter(line, 'metaesperada');
+            const valReal = getNumberAfter(line, 'real');
+
+            // Explicit mapping if keywords are found
+            if (valMetaMes !== null) {
+              newData.store.pillars[targetPillar].metaMensal = valMetaMes;
+              newData.store.pillars[targetPillar].meta = valMetaMes;
+            }
+            if (valMetaEsperada !== null) {
+              newData.store.pillars[targetPillar].metaEsperada = valMetaEsperada;
+            }
+            if (valReal !== null) {
+              newData.store.pillars[targetPillar].realized = valReal;
+            }
+
+            // Fallback for old format if no explicit keywords found
+            if (valMetaMes === null && valMetaEsperada === null && valReal === null) {
+              const nums = extractNumbers(line);
+              if (nums.length === 0) return;
+
+              const isMeta = normalized.includes('meta');
+              const isReal = normalized.includes('real') || normalized.includes('atingido') || normalized.includes('realizado');
+              const isSazonal = normalized.includes('sazonal') || normalized.includes('esperada') || normalized.includes('acumulado');
+
+              if (isSazonal) {
+                newData.store.pillars[targetPillar].metaEsperada = nums[0];
+                if (nums.length >= 2) newData.store.pillars[targetPillar].realized = nums[1];
+              } else if (nums.length >= 2) {
                 newData.store.pillars[targetPillar].meta = nums[0];
-                if (newData.store.period.type === 'daily') {
-                  newData.store.pillars[targetPillar].metaMensal = nums[0];
+                newData.store.pillars[targetPillar].realized = nums[1];
+                if (newData.store.period.type === 'daily') newData.store.pillars[targetPillar].metaMensal = nums[0];
+              } else if (nums.length === 1) {
+                if (isReal && !isMeta) newData.store.pillars[targetPillar].realized = nums[0];
+                else {
+                  newData.store.pillars[targetPillar].meta = nums[0];
+                  if (newData.store.period.type === 'daily') newData.store.pillars[targetPillar].metaMensal = nums[0];
                 }
               }
             }
           } else {
+            const nums = extractNumbers(line);
+            if (nums.length === 0) return;
+            
             const isCards = normalized.includes('cartao') || normalized.includes('cartoes');
             const isCombos = normalized.includes('combo');
+            const isReal = normalized.includes('real') || normalized.includes('atingido') || normalized.includes('realizado');
+            const isMeta = normalized.includes('meta');
             
             if (isCards) {
               if (nums.length >= 2) {
