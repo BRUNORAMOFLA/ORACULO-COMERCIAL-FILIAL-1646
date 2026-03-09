@@ -69,23 +69,24 @@ export function getSeasonalData(data: OracleData, fullHistory: OracleHistoryV1):
     if (periodDailyRecords.length > 0) {
       // 1. Calculate Sellers Data first (Sum of Daily Metas and Realized)
       sellersData = data.sellers.map(seller => {
-        const sellerDailyRecords = periodDailyRecords.map(r => 
-          r.dados.sellers.find(s => s.name?.trim().toLowerCase() === seller.name?.trim().toLowerCase())
-        ).filter(Boolean);
+        const sellerDailyRecords = periodDailyRecords.map(r => ({
+          seller: r.dados.sellers.find(s => s.name?.trim().toLowerCase() === seller.name?.trim().toLowerCase()),
+          period: r.dados.store.period
+        })).filter(x => x.seller);
 
         return {
           name: seller.name,
           mercantil: {
-            meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.meta || 0), 0),
-            real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.mercantil.realized || 0), 0)
+            meta: sellerDailyRecords.reduce((acc, x) => acc + (x.seller?.pillars.mercantil.meta || 0), 0),
+            real: sellerDailyRecords.reduce((acc, x) => acc + (x.seller?.pillars.mercantil.realized || 0), 0)
           },
           cdc: {
-            meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.meta || 0), 0),
-            real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.cdc.realized || 0), 0)
+            meta: sellerDailyRecords.reduce((acc, x) => acc + (x.seller?.pillars.cdc.meta || 0), 0),
+            real: sellerDailyRecords.reduce((acc, x) => acc + (x.seller?.pillars.cdc.realized || 0), 0)
           },
           services: {
-            meta: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.meta || 0), 0),
-            real: sellerDailyRecords.reduce((acc, s) => acc + (s?.pillars.services.realized || 0), 0)
+            meta: sellerDailyRecords.reduce((acc, x) => acc + (x.seller?.pillars.services.meta || 0), 0),
+            real: sellerDailyRecords.reduce((acc, x) => acc + (x.seller?.pillars.services.realized || 0), 0)
           }
         };
       });
@@ -93,15 +94,41 @@ export function getSeasonalData(data: OracleData, fullHistory: OracleHistoryV1):
       // 2. Calculate Store Data
       storeData = {
         mercantil: {
-          meta: data.store.pillars.mercantil.metaEsperada || (mode === 'monthly' ? (data.store.pillars.mercantil.metaMensal || data.store.pillars.mercantil.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0)),
+          meta: data.store.pillars.mercantil.metaEsperada || (mode === 'monthly' ? (data.store.pillars.mercantil.metaMensal || data.store.pillars.mercantil.meta) : periodDailyRecords.reduce((acc, r) => {
+            const m = r.dados.store.pillars.mercantil.meta || 0;
+            const mm = r.dados.store.pillars.mercantil.metaMensal || 0;
+            // If meta is the same as metaMensal, it's likely a monthly goal stored as daily meta
+            // We should use the proportional daily meta instead
+            if (m > 0 && m === mm && r.dados.store.period.type === 'daily') {
+              const days = r.dados.store.period.businessDaysTotal || 1;
+              return acc + (m / days);
+            }
+            return acc + m;
+          }, 0)),
           real: sellersData.reduce((acc, s) => acc + s.mercantil.real, 0)
         },
         cdc: {
-          meta: data.store.pillars.cdc.metaEsperada || (mode === 'monthly' ? (data.store.pillars.cdc.metaMensal || data.store.pillars.cdc.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0)),
+          meta: data.store.pillars.cdc.metaEsperada || (mode === 'monthly' ? (data.store.pillars.cdc.metaMensal || data.store.pillars.cdc.meta) : periodDailyRecords.reduce((acc, r) => {
+            const m = r.dados.store.pillars.cdc.meta || 0;
+            const mm = r.dados.store.pillars.cdc.metaMensal || 0;
+            if (m > 0 && m === mm && r.dados.store.period.type === 'daily') {
+              const days = r.dados.store.period.businessDaysTotal || 1;
+              return acc + (m / days);
+            }
+            return acc + m;
+          }, 0)),
           real: sellersData.reduce((acc, s) => acc + s.cdc.real, 0)
         },
         services: {
-          meta: data.store.pillars.services.metaEsperada || (mode === 'monthly' ? (data.store.pillars.services.metaMensal || data.store.pillars.services.meta) : periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0)),
+          meta: data.store.pillars.services.metaEsperada || (mode === 'monthly' ? (data.store.pillars.services.metaMensal || data.store.pillars.services.meta) : periodDailyRecords.reduce((acc, r) => {
+            const m = r.dados.store.pillars.services.meta || 0;
+            const mm = r.dados.store.pillars.services.metaMensal || 0;
+            if (m > 0 && m === mm && r.dados.store.period.type === 'daily') {
+              const days = r.dados.store.period.businessDaysTotal || 1;
+              return acc + (m / days);
+            }
+            return acc + m;
+          }, 0)),
           real: sellersData.reduce((acc, s) => acc + s.services.real, 0)
         }
       };

@@ -187,19 +187,43 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
         // 2. Calculate Store Data (Sum of Daily Metas, and Realized from Sellers Sum for consistency)
         storeData = {
           mercantil: {
-            meta: data.store.pillars.mercantil.metaEsperada || periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.mercantil.meta || 0), 0),
+            meta: data.store.pillars.mercantil.metaEsperada || periodDailyRecords.reduce((acc, r) => {
+              const m = r.dados.store.pillars.mercantil.meta || 0;
+              const mm = r.dados.store.pillars.mercantil.metaMensal || 0;
+              if (m > 0 && m === mm && r.dados.store.period.type === 'daily') {
+                const days = r.dados.store.period.businessDaysTotal || 1;
+                return acc + (m / days);
+              }
+              return acc + m;
+            }, 0),
             real: sellersData.reduce((acc, s) => acc + s.mercantil.real, 0),
             metaMensal: data.store.pillars.mercantil.metaMensal,
             metaEsperada: data.store.pillars.mercantil.metaEsperada
           },
           cdc: {
-            meta: data.store.pillars.cdc.metaEsperada || periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.cdc.meta || 0), 0),
+            meta: data.store.pillars.cdc.metaEsperada || periodDailyRecords.reduce((acc, r) => {
+              const m = r.dados.store.pillars.cdc.meta || 0;
+              const mm = r.dados.store.pillars.cdc.metaMensal || 0;
+              if (m > 0 && m === mm && r.dados.store.period.type === 'daily') {
+                const days = r.dados.store.period.businessDaysTotal || 1;
+                return acc + (m / days);
+              }
+              return acc + m;
+            }, 0),
             real: sellersData.reduce((acc, s) => acc + s.cdc.real, 0),
             metaMensal: data.store.pillars.cdc.metaMensal,
             metaEsperada: data.store.pillars.cdc.metaEsperada
           },
           services: {
-            meta: data.store.pillars.services.metaEsperada || periodDailyRecords.reduce((acc, r) => acc + (r.dados.store.pillars.services.meta || 0), 0),
+            meta: data.store.pillars.services.metaEsperada || periodDailyRecords.reduce((acc, r) => {
+              const m = r.dados.store.pillars.services.meta || 0;
+              const mm = r.dados.store.pillars.services.metaMensal || 0;
+              if (m > 0 && m === mm && r.dados.store.period.type === 'daily') {
+                const days = r.dados.store.period.businessDaysTotal || 1;
+                return acc + (m / days);
+              }
+              return acc + m;
+            }, 0),
             real: sellersData.reduce((acc, s) => acc + s.services.real, 0),
             metaMensal: data.store.pillars.services.metaMensal,
             metaEsperada: data.store.pillars.services.metaEsperada
@@ -512,8 +536,11 @@ export const Dashboard: React.FC<Props> = ({ data, history, fullHistory }) => {
             </div>
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 mb-2">Score Sazonal</span>
             <div className="text-6xl font-black tracking-tighter mb-2">{(seasonalScore.score || 0).toFixed(1)}</div>
-            <div className="px-4 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest">
-              {classifyHealth(seasonalScore.score)}
+            <div className="flex flex-col items-center gap-1 mb-4">
+              <div className="px-4 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest">
+                {classifyHealth(seasonalScore.score)}
+              </div>
+              <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Base: Meta Linear (Proporcional)</span>
             </div>
           </div>
 
