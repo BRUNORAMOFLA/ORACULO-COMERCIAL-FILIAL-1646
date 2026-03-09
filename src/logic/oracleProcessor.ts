@@ -47,8 +47,10 @@ export function processOracle(data: OracleData, history: HistoryRecord[] = []): 
     const pillar = store.pillars[p];
     const monthlyGoal = pillar.metaMensal || (store.period.type === 'monthly' ? pillar.meta : 0);
     
-    if (pillar.metaEsperada === 0 && monthlyGoal > 0) {
+    if (monthlyGoal > 0) {
       pillar.metaEsperada = (monthlyGoal / daysTotal) * daysElapsed;
+    } else {
+      pillar.metaEsperada = 0;
     }
 
     const storeMeta = pillar.metaMensal || pillar.meta;

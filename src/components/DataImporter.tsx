@@ -47,9 +47,6 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
 
       // 1. Process Store Block (Explicit Delimiters)
       const storeMatch = text.match(/\[LOJA_INICIO\]([\s\S]*?)\[LOJA_FIM\]/i);
-      const daysTotal = newData.store.period.businessDaysTotal || 1;
-      const isDaily = newData.store.period.type === 'daily';
-
       if (storeMatch) {
         const storeText = storeMatch[1];
         const storeLines = storeText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -67,23 +64,21 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
                              normalized.includes('servico') ? 'services' : null;
 
           if (targetPillar) {
-            const monthlyGoal = nums[0];
-            const dailyMeta = monthlyGoal / daysTotal;
-
             if (nums.length >= 2) {
-              newData.store.pillars[targetPillar].meta = isDaily ? dailyMeta : monthlyGoal;
+              newData.store.pillars[targetPillar].meta = nums[0];
               newData.store.pillars[targetPillar].realized = nums[1];
               
-              if (isDaily) {
-                newData.store.pillars[targetPillar].metaMensal = monthlyGoal;
+              // If we are in daily mode, the "Meta" in the bulletin is usually the monthly goal
+              if (newData.store.period.type === 'daily') {
+                newData.store.pillars[targetPillar].metaMensal = nums[0];
               }
             } else if (nums.length === 1) {
               if (isReal && !isMeta) {
                 newData.store.pillars[targetPillar].realized = nums[0];
               } else {
-                newData.store.pillars[targetPillar].meta = isDaily ? dailyMeta : monthlyGoal;
-                if (isDaily) {
-                  newData.store.pillars[targetPillar].metaMensal = monthlyGoal;
+                newData.store.pillars[targetPillar].meta = nums[0];
+                if (newData.store.period.type === 'daily') {
+                  newData.store.pillars[targetPillar].metaMensal = nums[0];
                 }
               }
             }
@@ -93,19 +88,19 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
             
             if (isCards) {
               if (nums.length >= 2) {
-                newData.store.pillars.operational.cards.meta = isDaily ? (nums[0] / daysTotal) : nums[0];
+                newData.store.pillars.operational.cards.meta = nums[0];
                 newData.store.pillars.operational.cards.realized = nums[1];
               } else if (nums.length === 1) {
                 if (isReal && !isMeta) newData.store.pillars.operational.cards.realized = nums[0];
-                else newData.store.pillars.operational.cards.meta = isDaily ? (nums[0] / daysTotal) : nums[0];
+                else newData.store.pillars.operational.cards.meta = nums[0];
               }
             } else if (isCombos) {
               if (nums.length >= 2) {
-                newData.store.pillars.operational.combos.meta = isDaily ? (nums[0] / daysTotal) : nums[0];
+                newData.store.pillars.operational.combos.meta = nums[0];
                 newData.store.pillars.operational.combos.realized = nums[1];
               } else if (nums.length === 1) {
                 if (isReal && !isMeta) newData.store.pillars.operational.combos.realized = nums[0];
-                else newData.store.pillars.operational.combos.meta = isDaily ? (nums[0] / daysTotal) : nums[0];
+                else newData.store.pillars.operational.combos.meta = nums[0];
               }
             }
           }
@@ -126,7 +121,7 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
           
           if (nums.length === 0) {
             if (line.length > 2) {
-              if (currentSeller) applyNumbersToSeller(currentSeller, sellerNumbers, daysTotal, isDaily);
+              if (currentSeller) applyNumbersToSeller(currentSeller, sellerNumbers);
               currentSeller = createEmptySeller(line);
               sellerNumbers = [];
               sellers.push(currentSeller);
@@ -134,7 +129,7 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
           } else {
             const namePart = line.split(/[0-9]/)[0].trim();
             if (namePart.length > 2) {
-              if (currentSeller) applyNumbersToSeller(currentSeller, sellerNumbers, daysTotal, isDaily);
+              if (currentSeller) applyNumbersToSeller(currentSeller, sellerNumbers);
               currentSeller = createEmptySeller(namePart);
               sellerNumbers = nums;
               sellers.push(currentSeller);
@@ -144,7 +139,7 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
           }
         });
 
-        if (currentSeller) applyNumbersToSeller(currentSeller, sellerNumbers, daysTotal, isDaily);
+        if (currentSeller) applyNumbersToSeller(currentSeller, sellerNumbers);
         if (sellers.length > 0) newData.sellers = sellers;
       }
 
@@ -180,18 +175,16 @@ export const DataImporter: React.FC<Props> = ({ onImport, currentData }) => {
     isTripleCrown: false,
   });
 
-  const applyNumbersToSeller = (seller: Seller, numbers: number[], daysTotal: number, isDaily: boolean) => {
-    const scale = isDaily ? (1 / daysTotal) : 1;
-    
-    seller.pillars.mercantil.meta = (numbers[0] || 0) * scale;
+  const applyNumbersToSeller = (seller: Seller, numbers: number[]) => {
+    seller.pillars.mercantil.meta = numbers[0] || 0;
     seller.pillars.mercantil.realized = numbers[1] || 0;
-    seller.pillars.cdc.meta = (numbers[2] || 0) * scale;
+    seller.pillars.cdc.meta = numbers[2] || 0;
     seller.pillars.cdc.realized = numbers[3] || 0;
-    seller.pillars.services.meta = (numbers[4] || 0) * scale;
+    seller.pillars.services.meta = numbers[4] || 0;
     seller.pillars.services.realized = numbers[5] || 0;
-    seller.operational.cards.meta = (numbers[6] || 0) * scale;
+    seller.operational.cards.meta = numbers[6] || 0;
     seller.operational.cards.realized = numbers[7] || 0;
-    seller.operational.combos.meta = (numbers[8] || 0) * scale;
+    seller.operational.combos.meta = numbers[8] || 0;
     seller.operational.combos.realized = numbers[9] || 0;
   };
 
