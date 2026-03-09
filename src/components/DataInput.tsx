@@ -236,16 +236,6 @@ export const DataInput: React.FC<Props> = ({ data, onChange, onPeriodChangeReque
                   onChange={val => updateStorePillar(p, 'realized', val)}
                 />
               </div>
-              <div className="pt-2 border-t border-zinc-200">
-                <NumberInput 
-                  label="Meta Linear / Esperada (R$)"
-                  value={data.store.pillars[p].metaEsperada || 0}
-                  onChange={val => updateStorePillar(p, 'metaEsperada', val)}
-                  plain={true}
-                />
-                <p className="text-[7px] text-zinc-400 mt-1 uppercase font-bold tracking-widest">Valor proporcional ao dia atual do mês.</p>
-              </div>
-
               {p === 'cdc' && (
                 <div className="pt-2 border-t border-zinc-200 grid grid-cols-2 gap-3">
                   <NumberInput 
